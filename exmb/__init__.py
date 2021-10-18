@@ -35,7 +35,7 @@ __reddit_search_query__ = " AND ".join((
             "sefn19",
             "DoeEensGek",
             "asd241",
-            "sefn19",
+            "TwoPlanksPrevail",
         )
     )),
     " OR ".join((
