@@ -91,15 +91,14 @@ def __run_bot(auth_alias: str, **listing_kwargs: str | int):
         highlight_posts_listing = []
 
         # Search all highlight posts
-        while True:
-            highlight_posts_listing.extend(res.json()["data"]["children"])
-
-            if res.json()["data"]["after"] is None:
-                break
+        while res.json()["data"]["dist"] != 0:
+            old_listing = highlight_posts_listing
+            highlight_posts_listing = res.json()["data"]["children"]
+            highlight_posts_listing.extend(old_listing)
 
             kwargs.update({
-                "after": res.json()["data"]["after"],
-                "before": None,
+                "after": None,
+                "before": res.json()["data"]["children"][0]["data"]["name"],
             })
 
             res = reddit.search(
@@ -109,14 +108,6 @@ def __run_bot(auth_alias: str, **listing_kwargs: str | int):
                 type="link",
                 **kwargs,
             )
-
-        if res.json()["data"]["dist"] != 0:
-            kwargs.update({
-                "after": None,
-                "before": res.json()["data"]["children"][0]["data"]["name"],
-            })
-
-        print(len(highlight_posts_listing))
 
         for post in highlight_posts_listing:
             vid_url: str = post["data"]["url"]
