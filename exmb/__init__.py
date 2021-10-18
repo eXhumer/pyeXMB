@@ -65,7 +65,7 @@ def __run_bot(auth_alias: str, **listing_kwargs: str | int):
     kwargs = {}
 
     for key, val in listing_kwargs.items():
-        if key in ("after", "before", "limit", "count") and val is not None:
+        if key in ("before", "limit") and val is not None:
             kwargs[key] = val
 
     session = Session()
@@ -347,7 +347,5 @@ def console_main():
     run_parser = subparsers.add_parser("run-bot")
     run_parser.add_argument("alias")
     run_parser.add_argument("--before")
-    run_parser.add_argument("--after")
-    run_parser.add_argument("--count", type=int)
     run_parser.add_argument("--limit", type=int)
     __parse_args(parser.parse_args())
