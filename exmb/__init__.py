@@ -14,18 +14,26 @@
 # along with this program.  If not, see <https://www.gnu.org/licenses/>.
 
 """Bot module to mirror r/formula1 highlight clips"""
+from __future__ import annotations
 from argparse import ArgumentParser, Namespace
+from io import BytesIO
 from pathlib import Path
 from pkg_resources import require
+from time import sleep
 
 from exrc.client import OAuth2Client
-from exvhp.service import Imgur, JustStreamLive, Streamable, Streamja, Streamwo
+from exvhp.service import JustStreamLive, Streamable, Streamja, Streamwo
+from exvhp.utils import (
+    get_streamable_video_url,
+    get_streamja_video_url,
+    get_streamwo_video_url,
+)
 from requests import Session
 
 __version__ = require(__package__)[0].version
 __config_path__ = Path.home() / ".config" / __package__
 __user_agent__ = f"{__package__}/{__version__}"
-__reddit_search_query__ = " AND ".join((
+__highlight_search_query__ = " AND ".join((
     " OR ".join((
         f"author:{author}"
         for author
@@ -53,23 +61,183 @@ __reddit_search_query__ = " AND ".join((
 ))
 
 
-def __run_bot(auth_alias: str):
+def __run_bot(auth_alias: str, **listing_kwargs: str | int):
+    for key, val in listing_kwargs.items():
+        if key not in ("after", "before", "limit", "count") or val is None:
+            del listing_kwargs[key]
+
     session = Session()
     session.headers["User-Agent"] = __user_agent__
     reddit = OAuth2Client.load_from_file(
         __config_path__ / f"{auth_alias}.json",
         session=session,
     )
-    imgur = Imgur(session=session)
     juststreamlive = JustStreamLive(session=session)
     streamable = Streamable(session=session)
     streamja = Streamja(session=session)
     streamwo = Streamwo(session=session)
 
-    # TODO: Scan for highlight posts from Reddit
-    # TODO: Check searched posts for supported hosts and mirror
-    # TODO: Submit mirrors to Reddit
-    # Loop process until keyboard interrupt
+    while True:
+        res = reddit.search(
+            __highlight_search_query__,
+            subreddit="formula1",
+            show="all",
+            type="link",
+            **listing_kwargs,
+        )
+
+        highlight_posts_listing = []
+
+        # Search all highlight posts
+        while True:
+            highlight_posts_listing.extend(res.json()["data"]["children"])
+
+            if res.json()["after"] is None:
+                break
+
+            listing_kwargs.update({
+                "after": res.json()["after"],
+                "before": None,
+            })
+
+            res = reddit.search(
+                __highlight_search_query__,
+                subreddit="formula1",
+                show="all",
+                type="link",
+                **listing_kwargs,
+            )
+
+        if res.json()["dist"] != 0:
+            listing_kwargs.update({
+                "after": res.json()["data"]["children"][0]["name"],
+                "before": None,
+            })
+
+        for post in highlight_posts_listing:
+            vid_url: str = post["url"]
+            mirrors = []
+
+            if vid_url.startswith("https://streamable.com/"):
+                streamwo_id = vid_url.split("https://streamable.com/")[1]
+
+                media_data = BytesIO(
+                    session.get(
+                        get_streamable_video_url(
+                            session,
+                            streamwo_id,
+                        )
+                    ).content
+                )
+
+                mirrors.extend([
+                    streamable.clip_video(
+                        streamwo_id,
+                        mirror_title=post["title"],
+                    ),
+                    juststreamlive.mirror_streamable_video(streamwo_id),
+                    streamja.upload_video(media_data, post["title"] + ".mp4"),
+                    streamwo.upload_video(media_data, post["title"] + ".mp4"),
+                ])
+
+            elif vid_url.startswith("https://streamja.com/"):
+                streamja_id = vid_url.split("https://streamwo.com/")[1]
+
+                media_data = BytesIO(
+                    session.get(
+                        get_streamja_video_url(
+                            session,
+                            streamja_id,
+                        )
+                    ).content
+                )
+
+                mirrors.extend([
+                    streamable.clip_streamwo_video(
+                        streamwo_id,
+                        mirror_title=post["title"],
+                    ),
+                    juststreamlive.mirror_streamwo_video(streamwo_id),
+                    streamja.upload_video(media_data, post["title"] + ".mp4"),
+                    streamwo.upload_video(media_data, post["title"] + ".mp4"),
+                ])
+
+            elif vid_url.startswith("https://streamwo.com/"):
+                streamwo_id = vid_url.split("https://streamwo.com/")[1]
+
+                if streamja_id.startswith("embed/"):
+                    streamwo_id = vid_url.split("embed/")[1]
+
+                media_data = BytesIO(
+                    session.get(
+                        get_streamwo_video_url(
+                            session,
+                            streamwo_id,
+                        )
+                    ).content
+                )
+
+                mirrors.extend([
+                    streamable.clip_streamwo_video(
+                        streamwo_id,
+                        mirror_title=post["title"],
+                    ),
+                    juststreamlive.mirror_streamwo_video(streamwo_id),
+                    streamja.upload_video(media_data, post["title"] + ".mp4"),
+                    streamwo.upload_video(media_data, post["title"] + ".mp4"),
+                ])
+
+            else:
+                continue
+
+            if len(mirrors) > 0:
+                res = reddit.comments(
+                    post["id"],
+                    limit=1,
+                    subreddit="formula1",
+                )
+
+                comment = res.json()[1]["data"]["children"][0]
+
+                [
+                    streamable_mirror,
+                    juststreamlive_mirror,
+                    streamja_mirror,
+                    streamwo_mirror,
+                ] = mirrors
+
+                mirrors = []
+
+                if (
+                    streamable_mirror.status_code == 200
+                    and streamable_mirror.json()["error"] is None
+                ):
+                    mirrors.append(streamable_mirror.json()["url"])
+
+                if juststreamlive_mirror.status_code == 200:
+                    jsl_mid = juststreamlive_mirror.json()["id"]
+                    mirrors.append(f"https://juststream.live/{jsl_mid}")
+
+                if (
+                    streamja_mirror.status_code == 200
+                    and streamja_mirror.json()["status"] == 1
+                ):
+                    sja_mid = streamja_mirror.json()["url"]
+                    mirrors.append(f"https://streamja.com/embed{sja_mid}")
+
+                if streamwo_mirror.status_code == 200:
+                    mirrors.append(
+                        f"https://streamwo.com/{streamwo_mirror.text}",
+                    )
+
+                reddit.comment(
+                    "\n\n".join(mirrors),
+                    post["name"]
+                    if comment["distinguished"] is None
+                    else comment["name"],
+                )
+
+        sleep(120)
 
 
 def __parse_args(args: Namespace):
@@ -122,7 +290,13 @@ def __parse_args(args: Namespace):
 
     elif args.action == "run-bot":
         if (__config_path__ / f"{args.alias}.json").is_file():
-            __run_bot(args.alias)
+            __run_bot(
+                args.alias,
+                before=args.before,
+                after=args.after,
+                count=args.count,
+                limit=args.limit,
+            )
 
         else:
             raise KeyError(
@@ -153,4 +327,8 @@ def console_main():
     auth_revoke_parser.add_argument("alias")
     run_parser = subparsers.add_parser("run-bot")
     run_parser.add_argument("alias")
+    run_parser.add_argument("--before")
+    run_parser.add_argument("--after")
+    run_parser.add_argument("--count", type=int)
+    run_parser.add_argument("--limit", type=int)
     __parse_args(parser.parse_args())
