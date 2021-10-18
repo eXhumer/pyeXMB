@@ -114,18 +114,18 @@ def __run_bot(auth_alias: str, **listing_kwargs: str | int):
             mirrors = []
 
             if vid_url.startswith("https://streamable.com/"):
-                streamwo_id = vid_url.split("https://streamable.com/")[1]
-                media_url = get_streamable_video_url(session, streamwo_id)
+                streamable_id = vid_url.split("https://streamable.com/")[1]
+                media_url = get_streamable_video_url(session, streamable_id)
 
                 if media_url is not None:
                     media_data = BytesIO(session.get(media_url).content)
 
                     mirrors.extend([
                         streamable.clip_video(
-                            streamwo_id,
+                            streamable_id,
                             mirror_title=post["data"]["title"],
                         ),
-                        juststreamlive.mirror_streamable_video(streamwo_id),
+                        juststreamlive.mirror_streamable_video(streamable_id),
                         streamja.upload_video(media_data, "Mirror.mp4"),
                         streamwo.upload_video(media_data, "Mirror.mp4"),
                     ])
@@ -134,7 +134,10 @@ def __run_bot(auth_alias: str, **listing_kwargs: str | int):
                     continue
 
             elif vid_url.startswith("https://streamja.com/"):
-                streamja_id = vid_url.split("https://streamwo.com/")[1]
+                streamja_id = vid_url.split("https://streamja.com/")[1]
+
+                if streamja_id.startswith("embed/"):
+                    streamja_id = vid_url.split("embed/")[1]
 
                 media_url = get_streamja_video_url(
                     session,
@@ -145,11 +148,11 @@ def __run_bot(auth_alias: str, **listing_kwargs: str | int):
                     media_data = BytesIO(session.get(media_url).content)
 
                     mirrors.extend([
-                        streamable.clip_streamwo_video(
-                            streamwo_id,
+                        streamable.clip_streamja_video(
+                            streamja_id,
                             mirror_title=post["data"]["title"],
                         ),
-                        juststreamlive.mirror_streamwo_video(streamwo_id),
+                        juststreamlive.mirror_streamja_video(streamja_id),
                         streamja.upload_video(media_data, "Mirror.mp4"),
                         streamwo.upload_video(media_data, "Mirror.mp4"),
                     ])
@@ -159,9 +162,6 @@ def __run_bot(auth_alias: str, **listing_kwargs: str | int):
 
             elif vid_url.startswith("https://streamwo.com/"):
                 streamwo_id = vid_url.split("https://streamwo.com/")[1]
-
-                if streamja_id.startswith("embed/"):
-                    streamwo_id = vid_url.split("embed/")[1]
 
                 media_url = get_streamwo_video_url(
                     session,
@@ -290,8 +290,6 @@ def __parse_args(args: Namespace):
             __run_bot(
                 args.alias,
                 before=args.before,
-                after=args.after,
-                count=args.count,
                 limit=args.limit,
             )
 
