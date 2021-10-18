@@ -34,30 +34,31 @@ __version__ = require(__package__)[0].version
 __config_path__ = Path.home() / ".config" / __package__
 __user_agent__ = f"{__package__}/{__version__}"
 __highlight_search_query__ = " AND ".join((
-    "(" + " OR ".join((
-        f"author:{author}"
-        for author
-        in (
-            "ContentPuff",
-            "magony",
-            "sefn19",
-            "DoeEensGek",
-            "asd241",
-            "TwoPlanksPrevail",
-        )
-    )) + ")",
-    "(" + " OR ".join((
-        f"flair:{flair}"
-        for flair
-        in (
-            "Video",
-            "Highlight",
-            '":post-video: Video"',
-            "DoeEensGek",
-            "asd241",
-            "sefn19",
-        )
-    )) + ")",
+    f"({query_part})"
+    for query_part
+    in (
+        " OR ".join((
+            f"author:{author}"
+            for author
+            in (
+                "ContentPuff",
+                "magony",
+                "sefn19",
+                "DoeEensGek",
+                "asd241",
+                "TwoPlanksPrevail",
+            )
+        )),
+        " OR ".join((
+            f"flair:{flair}"
+            for flair
+            in (
+                "Video",
+                "Highlight",
+                '":post-video: Video"',
+            )
+        )),
+    )
 ))
 
 
@@ -90,11 +91,10 @@ def __run_bot(auth_alias: str, **listing_kwargs: str | int):
 
         highlight_posts_listing = []
 
-        # Search all highlight posts
         while res.json()["data"]["dist"] != 0:
-            old_listing = highlight_posts_listing
-            highlight_posts_listing = res.json()["data"]["children"]
-            highlight_posts_listing.extend(old_listing)
+            new_listing = res.json()["data"]["children"]
+            new_listing.extend(highlight_posts_listing)
+            highlight_posts_listing = new_listing
 
             kwargs.update({
                 "after": None,
@@ -115,11 +115,7 @@ def __run_bot(auth_alias: str, **listing_kwargs: str | int):
 
             if vid_url.startswith("https://streamable.com/"):
                 streamwo_id = vid_url.split("https://streamable.com/")[1]
-
-                media_url = get_streamable_video_url(
-                    session,
-                    streamwo_id,
-                )
+                media_url = get_streamable_video_url(session, streamwo_id)
 
                 if media_url is not None:
                     media_data = BytesIO(session.get(media_url).content)
@@ -130,14 +126,8 @@ def __run_bot(auth_alias: str, **listing_kwargs: str | int):
                             mirror_title=post["data"]["title"],
                         ),
                         juststreamlive.mirror_streamable_video(streamwo_id),
-                        streamja.upload_video(
-                            media_data,
-                            post["data"]["title"] + ".mp4",
-                        ),
-                        streamwo.upload_video(
-                            media_data,
-                            post["data"]["title"] + ".mp4",
-                        ),
+                        streamja.upload_video(media_data, "Mirror.mp4"),
+                        streamwo.upload_video(media_data, "Mirror.mp4"),
                     ])
 
                 else:
@@ -160,14 +150,8 @@ def __run_bot(auth_alias: str, **listing_kwargs: str | int):
                             mirror_title=post["data"]["title"],
                         ),
                         juststreamlive.mirror_streamwo_video(streamwo_id),
-                        streamja.upload_video(
-                            media_data,
-                            post["data"]["title"] + ".mp4",
-                        ),
-                        streamwo.upload_video(
-                            media_data,
-                            post["data"]["title"] + ".mp4",
-                        ),
+                        streamja.upload_video(media_data, "Mirror.mp4"),
+                        streamwo.upload_video(media_data, "Mirror.mp4"),
                     ])
 
                 else:
@@ -193,14 +177,8 @@ def __run_bot(auth_alias: str, **listing_kwargs: str | int):
                             mirror_title=post["data"]["title"],
                         ),
                         juststreamlive.mirror_streamwo_video(streamwo_id),
-                        streamja.upload_video(
-                            media_data,
-                            post["data"]["title"] + ".mp4",
-                        ),
-                        streamwo.upload_video(
-                            media_data,
-                            post["data"]["title"] + ".mp4",
-                        ),
+                        streamja.upload_video(media_data, "Mirror.mp4"),
+                        streamwo.upload_video(media_data, "Mirror.mp4"),
                     ])
 
                 else:
