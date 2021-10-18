@@ -1,0 +1,15 @@
+# VSCode workspace directory
+/.vscode/
+
+# Byte-compiled / optimized / DLL files
+__pycache__/
+
+# Distribution / packaging
+/build/
+/dist/
+/*.egg-info/
+
+# Testing
+/.tox/
+/.coverage
+/htmlcov/

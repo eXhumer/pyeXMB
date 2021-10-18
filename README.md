@@ -1,0 +1,15 @@
+# eXMB
+Bot to mirror r/formula highlight clips, powered by [eXRC](https://github.com/eXhumer/eXRC) & [eXVHP](https://github.com/eXhumer/eXVHP).
+
+## Package Installation Guide
+### Requires
+* Python 3.9+
+* pip package manager
+
+### Install from source
+```console
+pip install .
+```
+
+## Licensing
+This project is licensed under OSI Approved [GNU GPLv3 **ONLY**](https://github.com/eXhumer/eXRC/blob/main/LICENSE.md).
