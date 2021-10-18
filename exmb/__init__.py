@@ -34,7 +34,7 @@ __version__ = require(__package__)[0].version
 __config_path__ = Path.home() / ".config" / __package__
 __user_agent__ = f"{__package__}/{__version__}"
 __highlight_search_query__ = " AND ".join((
-    " OR ".join((
+    "(" + " OR ".join((
         f"author:{author}"
         for author
         in (
@@ -45,8 +45,8 @@ __highlight_search_query__ = " AND ".join((
             "asd241",
             "TwoPlanksPrevail",
         )
-    )),
-    " OR ".join((
+    )) + ")",
+    "(" + " OR ".join((
         f"flair:{flair}"
         for flair
         in (
@@ -57,14 +57,16 @@ __highlight_search_query__ = " AND ".join((
             "asd241",
             "sefn19",
         )
-    )),
+    )) + ")",
 ))
 
 
 def __run_bot(auth_alias: str, **listing_kwargs: str | int):
+    kwargs = {}
+
     for key, val in listing_kwargs.items():
-        if key not in ("after", "before", "limit", "count") or val is None:
-            del listing_kwargs[key]
+        if key in ("after", "before", "limit", "count") and val is not None:
+            kwargs[key] = val
 
     session = Session()
     session.headers["User-Agent"] = __user_agent__
@@ -83,7 +85,7 @@ def __run_bot(auth_alias: str, **listing_kwargs: str | int):
             subreddit="formula1",
             show="all",
             type="link",
-            **listing_kwargs,
+            **kwargs,
         )
 
         highlight_posts_listing = []
@@ -92,11 +94,11 @@ def __run_bot(auth_alias: str, **listing_kwargs: str | int):
         while True:
             highlight_posts_listing.extend(res.json()["data"]["children"])
 
-            if res.json()["after"] is None:
+            if res.json()["data"]["after"] is None:
                 break
 
-            listing_kwargs.update({
-                "after": res.json()["after"],
+            kwargs.update({
+                "after": res.json()["data"]["after"],
                 "before": None,
             })
 
@@ -105,62 +107,80 @@ def __run_bot(auth_alias: str, **listing_kwargs: str | int):
                 subreddit="formula1",
                 show="all",
                 type="link",
-                **listing_kwargs,
+                **kwargs,
             )
 
-        if res.json()["dist"] != 0:
-            listing_kwargs.update({
-                "after": res.json()["data"]["children"][0]["name"],
-                "before": None,
+        if res.json()["data"]["dist"] != 0:
+            kwargs.update({
+                "after": None,
+                "before": res.json()["data"]["children"][0]["data"]["name"],
             })
 
+        print(len(highlight_posts_listing))
+
         for post in highlight_posts_listing:
-            vid_url: str = post["url"]
+            vid_url: str = post["data"]["url"]
             mirrors = []
 
             if vid_url.startswith("https://streamable.com/"):
                 streamwo_id = vid_url.split("https://streamable.com/")[1]
 
-                media_data = BytesIO(
-                    session.get(
-                        get_streamable_video_url(
-                            session,
-                            streamwo_id,
-                        )
-                    ).content
+                media_url = get_streamable_video_url(
+                    session,
+                    streamwo_id,
                 )
 
-                mirrors.extend([
-                    streamable.clip_video(
-                        streamwo_id,
-                        mirror_title=post["title"],
-                    ),
-                    juststreamlive.mirror_streamable_video(streamwo_id),
-                    streamja.upload_video(media_data, post["title"] + ".mp4"),
-                    streamwo.upload_video(media_data, post["title"] + ".mp4"),
-                ])
+                if media_url is not None:
+                    media_data = BytesIO(session.get(media_url).content)
+
+                    mirrors.extend([
+                        streamable.clip_video(
+                            streamwo_id,
+                            mirror_title=post["data"]["title"],
+                        ),
+                        juststreamlive.mirror_streamable_video(streamwo_id),
+                        streamja.upload_video(
+                            media_data,
+                            post["data"]["title"] + ".mp4",
+                        ),
+                        streamwo.upload_video(
+                            media_data,
+                            post["data"]["title"] + ".mp4",
+                        ),
+                    ])
+
+                else:
+                    continue
 
             elif vid_url.startswith("https://streamja.com/"):
                 streamja_id = vid_url.split("https://streamwo.com/")[1]
 
-                media_data = BytesIO(
-                    session.get(
-                        get_streamja_video_url(
-                            session,
-                            streamja_id,
-                        )
-                    ).content
+                media_url = get_streamja_video_url(
+                    session,
+                    streamja_id,
                 )
 
-                mirrors.extend([
-                    streamable.clip_streamwo_video(
-                        streamwo_id,
-                        mirror_title=post["title"],
-                    ),
-                    juststreamlive.mirror_streamwo_video(streamwo_id),
-                    streamja.upload_video(media_data, post["title"] + ".mp4"),
-                    streamwo.upload_video(media_data, post["title"] + ".mp4"),
-                ])
+                if media_url is not None:
+                    media_data = BytesIO(session.get(media_url).content)
+
+                    mirrors.extend([
+                        streamable.clip_streamwo_video(
+                            streamwo_id,
+                            mirror_title=post["data"]["title"],
+                        ),
+                        juststreamlive.mirror_streamwo_video(streamwo_id),
+                        streamja.upload_video(
+                            media_data,
+                            post["data"]["title"] + ".mp4",
+                        ),
+                        streamwo.upload_video(
+                            media_data,
+                            post["data"]["title"] + ".mp4",
+                        ),
+                    ])
+
+                else:
+                    continue
 
             elif vid_url.startswith("https://streamwo.com/"):
                 streamwo_id = vid_url.split("https://streamwo.com/")[1]
@@ -168,31 +188,39 @@ def __run_bot(auth_alias: str, **listing_kwargs: str | int):
                 if streamja_id.startswith("embed/"):
                     streamwo_id = vid_url.split("embed/")[1]
 
-                media_data = BytesIO(
-                    session.get(
-                        get_streamwo_video_url(
-                            session,
-                            streamwo_id,
-                        )
-                    ).content
+                media_url = get_streamwo_video_url(
+                    session,
+                    streamwo_id,
                 )
 
-                mirrors.extend([
-                    streamable.clip_streamwo_video(
-                        streamwo_id,
-                        mirror_title=post["title"],
-                    ),
-                    juststreamlive.mirror_streamwo_video(streamwo_id),
-                    streamja.upload_video(media_data, post["title"] + ".mp4"),
-                    streamwo.upload_video(media_data, post["title"] + ".mp4"),
-                ])
+                if media_url is not None:
+                    media_data = BytesIO(session.get(media_url).content)
+
+                    mirrors.extend([
+                        streamable.clip_streamwo_video(
+                            streamwo_id,
+                            mirror_title=post["data"]["title"],
+                        ),
+                        juststreamlive.mirror_streamwo_video(streamwo_id),
+                        streamja.upload_video(
+                            media_data,
+                            post["data"]["title"] + ".mp4",
+                        ),
+                        streamwo.upload_video(
+                            media_data,
+                            post["data"]["title"] + ".mp4",
+                        ),
+                    ])
+
+                else:
+                    continue
 
             else:
                 continue
 
             if len(mirrors) > 0:
                 res = reddit.comments(
-                    post["id"],
+                    post["data"]["id"],
                     limit=1,
                     subreddit="formula1",
                 )
@@ -232,9 +260,9 @@ def __run_bot(auth_alias: str, **listing_kwargs: str | int):
 
                 reddit.comment(
                     "\n\n".join(mirrors),
-                    post["name"]
-                    if comment["distinguished"] is None
-                    else comment["name"],
+                    post["data"]["name"]
+                    if comment["data"]["distinguished"] is None
+                    else comment["data"]["name"],
                 )
 
         sleep(120)
