@@ -1,5 +1,5 @@
 # eXMB
-Bot to mirror r/formula highlight clips, powered by [eXRC](https://github.com/eXhumer/eXRC) & [eXVHP](https://github.com/eXhumer/eXVHP).
+Bot to mirror r/formula1 highlight clips, powered by [eXRC](https://github.com/eXhumer/eXRC) & [eXVHP](https://github.com/eXhumer/eXVHP).
 
 ## Package Installation Guide
 ### Requires

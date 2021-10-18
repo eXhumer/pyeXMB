@@ -1,4 +1,4 @@
-# eXMB - Bot to mirror r/formula highlight clips
+# eXMB - Bot to mirror r/formula1 highlight clips
 # Copyright (C) 2021 - eXhumer
 
 # This program is free software: you can redistribute it and/or modify
@@ -13,7 +13,7 @@
 # You should have received a copy of the GNU General Public License
 # along with this program.  If not, see <https://www.gnu.org/licenses/>.
 
-"""Bot module to mirror r/formula highlight clips"""
+"""Bot module to mirror r/formula1 highlight clips"""
 from argparse import ArgumentParser, Namespace
 from pathlib import Path
 from pkg_resources import require
