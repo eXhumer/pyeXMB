@@ -80,14 +80,45 @@ def __run_bot(auth_alias: str, **listing_kwargs: str | int):
     streamja = Streamja(session=session)
     streamwo = Streamwo(session=session)
 
-    while True:
+    if "before" not in kwargs:
+        print("before not specified! attempting to retrieve latest post name")
+
         res = reddit.search(
             __highlight_search_query__,
             subreddit="formula1",
             show="all",
+            sort="new",
             type="link",
             **kwargs,
         )
+
+        if res.status_code != 200:
+            raise ValueError(
+                "Invalid response while trying to retrieve latest post name!",
+            )
+
+        kwargs.update({
+            "before": res.json()["data"]["children"][0]["data"]["name"],
+        })
+
+        print(f"Latest post name: {kwargs['before']}")
+
+    while True:
+        print(f"Searching all posts before post name {kwargs['before']}")
+
+        res = reddit.search(
+            __highlight_search_query__,
+            subreddit="formula1",
+            show="all",
+            sort="new",
+            type="link",
+            **kwargs,
+        )
+
+        if res.status_code != 200:
+            raise ValueError(
+                "Invalid response while trying to retrieve posts listing!",
+            )
 
         highlight_posts_listing = []
 
@@ -97,7 +128,6 @@ def __run_bot(auth_alias: str, **listing_kwargs: str | int):
             highlight_posts_listing = new_listing
 
             kwargs.update({
-                "after": None,
                 "before": res.json()["data"]["children"][0]["data"]["name"],
             })
 
@@ -105,33 +135,67 @@ def __run_bot(auth_alias: str, **listing_kwargs: str | int):
                 __highlight_search_query__,
                 subreddit="formula1",
                 show="all",
+                sort="new",
                 type="link",
                 **kwargs,
             )
 
+            if res.status_code != 200:
+                raise ValueError(
+                    "Invalid response while trying to retrieve posts listing!",
+                )
+
         for post in highlight_posts_listing:
             vid_url: str = post["data"]["url"]
-            mirrors = []
+
+            sab_mirror_res = None
+            sja_mirror_res = None
+            swo_mirror_res = None
+            jsl_mirror_res = None
+
+            if not vid_url.startswith((
+                "https://streamable.com/",
+                "https://streamja.com/",
+                "https://streamwo.com/",
+            )):
+                print(
+                    f"Post {post['data']['name']} with unsupported video host!"
+                )
+                continue
 
             if vid_url.startswith("https://streamable.com/"):
                 streamable_id = vid_url.split("https://streamable.com/")[1]
+                print(f"Processing {post['data']['name']} with Streamable " +
+                      f"Video {streamable_id}")
                 media_url = get_streamable_video_url(session, streamable_id)
 
-                if media_url is not None:
-                    media_data = BytesIO(session.get(media_url).content)
-
-                    mirrors.extend([
-                        streamable.clip_video(
-                            streamable_id,
-                            mirror_title=post["data"]["title"],
-                        ),
-                        juststreamlive.mirror_streamable_video(streamable_id),
-                        streamja.upload_video(media_data, "Mirror.mp4"),
-                        streamwo.upload_video(media_data, "Mirror.mp4"),
-                    ])
-
-                else:
+                if media_url is None:
+                    print("Unable to get direct video link from Streamable " +
+                          f"video ID {streamable_id}. Video not available / " +
+                          "taken down!")
                     continue
+
+                media_res = session.get(media_url)
+
+                if media_res != 200:
+                    print("Invalid response while trying to retrieve media" +
+                          f" content from {media_url} for Streamable Video " +
+                          f"{streamable_id} for Reddit Post " +
+                          f"{post['data']['name']}!")
+                    continue
+
+                media_data = BytesIO(media_res.content)
+
+                sab_mirror_res = streamable.clip_video(
+                    streamable_id,
+                    mirror_title=post["data"]["title"],
+                ),
+                jsl_mirror_res = \
+                    juststreamlive.mirror_streamable_video(streamable_id)
+                sja_mirror_res = \
+                    streamja.upload_video(media_data, "Mirror.mp4")
+                swo_mirror_res = \
+                    streamwo.upload_video(media_data, "Mirror.mp4")
 
             elif vid_url.startswith("https://streamja.com/"):
                 streamja_id = vid_url.split("https://streamja.com/")[1]
@@ -139,101 +203,148 @@ def __run_bot(auth_alias: str, **listing_kwargs: str | int):
                 if streamja_id.startswith("embed/"):
                     streamja_id = vid_url.split("embed/")[1]
 
+                print(f"Processing {post['data']['name']} with Streamja " +
+                      f"Video {streamja_id}")
+
                 media_url = get_streamja_video_url(
                     session,
                     streamja_id,
                 )
 
-                if media_url is not None:
-                    media_data = BytesIO(session.get(media_url).content)
-
-                    mirrors.extend([
-                        streamable.clip_streamja_video(
-                            streamja_id,
-                            mirror_title=post["data"]["title"],
-                        ),
-                        juststreamlive.mirror_streamja_video(streamja_id),
-                        streamja.upload_video(media_data, "Mirror.mp4"),
-                        streamwo.upload_video(media_data, "Mirror.mp4"),
-                    ])
-
-                else:
+                if media_url is None:
+                    print("Unable to get direct video link from Streamja " +
+                          f"video ID {streamja_id}. Video not available / " +
+                          "taken down!")
                     continue
+
+                media_res = session.get(media_url)
+
+                if media_res.status_code != 200:
+                    print("Invalid response while trying to retrieve media" +
+                          f" content from {media_url} for Streamja Video " +
+                          f"{streamja_id} for Reddit Post " +
+                          f"{post['data']['name']}!")
+                    continue
+
+                media_data = BytesIO(media_res.content)
+
+                sab_mirror_res = streamable.clip_streamja_video(
+                    streamja_id,
+                    mirror_title=post["data"]["title"],
+                )
+                jsl_mirror_res = \
+                    juststreamlive.mirror_streamja_video(streamja_id)
+                sja_mirror_res = \
+                    streamja.upload_video(media_data, "Mirror.mp4")
+                swo_mirror_res = \
+                    streamwo.upload_video(media_data, "Mirror.mp4")
 
             elif vid_url.startswith("https://streamwo.com/"):
                 streamwo_id = vid_url.split("https://streamwo.com/")[1]
+                print(f"Processing {post['data']['name']} with Streamwo " +
+                      f"Video {streamwo_id}")
 
                 media_url = get_streamwo_video_url(
                     session,
                     streamwo_id,
                 )
 
-                if media_url is not None:
-                    media_data = BytesIO(session.get(media_url).content)
-
-                    mirrors.extend([
-                        streamable.clip_streamwo_video(
-                            streamwo_id,
-                            mirror_title=post["data"]["title"],
-                        ),
-                        juststreamlive.mirror_streamwo_video(streamwo_id),
-                        streamja.upload_video(media_data, "Mirror.mp4"),
-                        streamwo.upload_video(media_data, "Mirror.mp4"),
-                    ])
-
-                else:
+                if media_url is None:
+                    print("Unable to get direct video link from Streamwo " +
+                          f"video ID {streamwo_id}. Video not available / " +
+                          "taken down!")
                     continue
 
+                media_res = session.get(media_url)
+
+                if media_res.status_code != 200:
+                    print("Invalid response while trying to retrieve media" +
+                          f" content from {media_url} for Streamwo Video " +
+                          f"{streamwo_id} for Reddit Post " +
+                          f"{post['data']['name']}!")
+                    continue
+
+                media_data = BytesIO(media_res.content)
+
+                sab_mirror_res = streamable.clip_streamwo_video(
+                    streamwo_id,
+                    mirror_title=post["data"]["title"],
+                )
+                jsl_mirror_res = \
+                    juststreamlive.mirror_streamwo_video(streamwo_id)
+                sja_mirror_res = \
+                    streamja.upload_video(media_data, "Mirror.mp4")
+                swo_mirror_res = \
+                    streamwo.upload_video(media_data, "Mirror.mp4")
+
+            mirrors = []
+
+            if (
+                sab_mirror_res.status_code == 200
+                and sab_mirror_res.json()["error"] is None
+            ):
+                print(f"Streamable mirror created for {post['data']['name']}!")
+                mirrors.append(sab_mirror_res.json()["url"])
+
             else:
-                continue
+                print(f"Streamable mirror failed for {post['data']['name']}!")
+
+            if jsl_mirror_res.status_code == 200:
+                jsl_mid = jsl_mirror_res.json()["id"]
+                print("Juststreamlive mirror created for " +
+                      f"{post['data']['name']}!")
+                mirrors.append(f"https://juststream.live/{jsl_mid}")
+
+            else:
+                print("Juststreamlive mirror failed for " +
+                      f"{post['data']['name']}!")
+
+            if (
+                sja_mirror_res.status_code == 200
+                and sja_mirror_res.json()["status"] == 1
+            ):
+                sja_mid = sja_mirror_res.json()["url"]
+                print(f"Streamja mirror created for {post['data']['name']}!")
+                mirrors.append(f"https://streamja.com/embed{sja_mid}")
+
+            else:
+                print(f"Streamja mirror created for {post['data']['name']}!")
+
+            if swo_mirror_res.status_code == 200:
+                print(f"Streamwo mirror created for {post['data']['name']}!")
+                mirrors.append(
+                    f"https://streamwo.com/{swo_mirror_res.text}",
+                )
+
+            else:
+                print(f"Streamwo mirror created for {post['data']['name']}!")
 
             if len(mirrors) > 0:
+                parent_id = post["data"]["name"]
+
                 res = reddit.comments(
                     post["data"]["id"],
-                    limit=1,
                     subreddit="formula1",
+                    limit=1,
                 )
 
-                comment = res.json()[1]["data"]["children"][0]
+                if res.status_code != 200:
+                    print("Invalid response while trying to retrieve posts " +
+                          "listing!")
 
-                [
-                    streamable_mirror,
-                    juststreamlive_mirror,
-                    streamja_mirror,
-                    streamwo_mirror,
-                ] = mirrors
+                else:
+                    post_first_comment = res.json()[1]["data"]["children"][0]
 
-                mirrors = []
+                    if post_first_comment["data"]["distinguished"] is not None:
+                        parent_id = post_first_comment["data"]["name"]
 
-                if (
-                    streamable_mirror.status_code == 200
-                    and streamable_mirror.json()["error"] is None
-                ):
-                    mirrors.append(streamable_mirror.json()["url"])
+                reddit.comment("\n\n".join(mirrors), parent_id)
 
-                if juststreamlive_mirror.status_code == 200:
-                    jsl_mid = juststreamlive_mirror.json()["id"]
-                    mirrors.append(f"https://juststream.live/{jsl_mid}")
+            else:
+                print("Failed to create any mirror for " +
+                      post['data']['name'])
 
-                if (
-                    streamja_mirror.status_code == 200
-                    and streamja_mirror.json()["status"] == 1
-                ):
-                    sja_mid = streamja_mirror.json()["url"]
-                    mirrors.append(f"https://streamja.com/embed{sja_mid}")
-
-                if streamwo_mirror.status_code == 200:
-                    mirrors.append(
-                        f"https://streamwo.com/{streamwo_mirror.text}",
-                    )
-
-                reddit.comment(
-                    "\n\n".join(mirrors),
-                    post["data"]["name"]
-                    if comment["data"]["distinguished"] is None
-                    else comment["data"]["name"],
-                )
-
+        print("Sleeping for 120 seconds!")
         sleep(120)
 
 
