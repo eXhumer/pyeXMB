@@ -408,7 +408,7 @@ def __mirror_for_posts(
             else:
                 post_first_comment = res.json()[1]["data"]["children"][0]
 
-                if post_first_comment["data"]["distinguished"] is not None:
+                if post_first_comment["data"]["stickied"] is True:
                     parent_id = post_first_comment["data"]["name"]
 
             reddit.comment(
