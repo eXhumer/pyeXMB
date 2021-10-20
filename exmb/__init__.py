@@ -23,11 +23,14 @@ from time import sleep
 from typing import Any, Dict, List
 
 from exrc.client import OAuth2Client
-from exvhp.service import JustStreamLive, Streamable, Streamja, Streamwo
+from exvhp.service import (
+    JustStreamLive, Streamable, Streamja, Streamwo, Streamff,
+)
 from exvhp.utils import (
     get_streamable_video_url,
     get_streamja_video_url,
     get_streamwo_video_url,
+    get_streamff_video_url,
 )
 from requests import Session
 
@@ -80,6 +83,7 @@ def __run_bot(auth_alias: str, **listing_kwargs: str | int):
     streamable = Streamable(session=session)
     streamja = Streamja(session=session)
     streamwo = Streamwo(session=session)
+    streamff = Streamff(session=session)
 
     if "before" not in kwargs:
         print("before not specified! attempting to retrieve latest post name")
@@ -154,6 +158,7 @@ def __run_bot(auth_alias: str, **listing_kwargs: str | int):
             streamja,
             streamwo,
             juststreamlive,
+            streamff,
         )
 
         print("Sleeping for 120 seconds!")
@@ -175,6 +180,7 @@ def __mirror_for_posts_by_id(
     streamable = Streamable(session=session)
     streamja = Streamja(session=session)
     streamwo = Streamwo(session=session)
+    streamff = Streamff(session=session)
 
     res = reddit.info(ids=post_ids, subreddit=subreddit)
 
@@ -205,7 +211,8 @@ def __mirror_for_posts_by_id(
         streamable,
         streamja,
         streamwo,
-        juststreamlive
+        juststreamlive,
+        streamff,
     )
 
 
@@ -217,6 +224,7 @@ def __mirror_for_posts(
     streamja: Streamja,
     streamwo: Streamwo,
     juststreamlive: JustStreamLive,
+    streamff: Streamff,
 ):
     for post in highlight_posts:
         vid_url: str = post["data"]["url"]
@@ -230,6 +238,7 @@ def __mirror_for_posts(
             "https://streamable.com/",
             "https://streamja.com/",
             "https://streamwo.com/",
+            "https://streamff.com/v/",
         )):
             print(
                 f"Post {post['data']['name']} with unsupported video host!"
@@ -269,6 +278,8 @@ def __mirror_for_posts(
                 streamja.upload_video(media_data, "Mirror.mp4")
             swo_mirror_res = \
                 streamwo.upload_video(media_data, "Mirror.mp4")
+            sff_mirror_res = \
+                streamff.upload_video(media_data, "Mirror.mp4")
 
         elif vid_url.startswith("https://streamja.com/"):
             streamja_id = vid_url.split("https://streamja.com/")[1]
@@ -311,6 +322,8 @@ def __mirror_for_posts(
                 streamja.upload_video(media_data, "Mirror.mp4")
             swo_mirror_res = \
                 streamwo.upload_video(media_data, "Mirror.mp4")
+            sff_mirror_res = \
+                streamff.upload_video(media_data, "Mirror.mp4")
 
         elif vid_url.startswith("https://streamwo.com/"):
             streamwo_id = vid_url.split("https://streamwo.com/")[1]
@@ -349,6 +362,48 @@ def __mirror_for_posts(
                 streamja.upload_video(media_data, "Mirror.mp4")
             swo_mirror_res = \
                 streamwo.upload_video(media_data, "Mirror.mp4")
+            sff_mirror_res = \
+                streamff.upload_video(media_data, "Mirror.mp4")
+
+        elif vid_url.startswith("https://streamff.com/v/"):
+            streamff_id = vid_url.split("https://streamff.com/v/")[1]
+            print(f"Processing {post['data']['name']} with Streamff " +
+                  f"Video {streamff_id}")
+
+            media_url = get_streamff_video_url(
+                session,
+                streamff_id,
+            )
+
+            if media_url is None:
+                print("Unable to get direct video link from Streamff " +
+                      f"video ID {streamff_id}. Video not available / " +
+                      "taken down!")
+                continue
+
+            media_res = session.get(media_url)
+
+            if media_res.status_code != 200:
+                print("Invalid response while trying to retrieve media" +
+                      f" content from {media_url} for Streamff Video " +
+                      f"{streamff_id} for Reddit Post " +
+                      f"{post['data']['name']}!")
+                continue
+
+            media_data = BytesIO(media_res.content)
+
+            sab_mirror_res = streamable.clip_streamff_video(
+                streamff_id,
+                mirror_title=post["data"]["title"],
+            )
+            jsl_mirror_res = \
+                juststreamlive.upload_video(media_data, streamwo_id)
+            sja_mirror_res = \
+                streamja.upload_video(media_data, "Mirror.mp4")
+            swo_mirror_res = \
+                streamwo.upload_video(media_data, "Mirror.mp4")
+            sff_mirror_res = \
+                streamff.upload_video(media_data, "Mirror.mp4")
 
         mirrors = []
 
@@ -391,6 +446,17 @@ def __mirror_for_posts(
 
         else:
             print(f"Streamwo mirror failed for {post['data']['name']}!")
+
+        if sff_mirror_res.status_code == 200:
+            print(f"Streamff mirror created for {post['data']['name']}!")
+            mirrors.append(
+                sff_mirror_res.url.split(
+                    "https://streamff.com/api/videos/upload/"
+                )[1]
+            )
+
+        else:
+            print(f"Streamff mirror failed for {post['data']['name']}!")
 
         if len(mirrors) > 0:
             parent_id = post["data"]["name"]
@@ -538,6 +604,35 @@ def __post_streamwo(
     )
 
 
+def __post_streamff(
+    auth_alias: str,
+    media_path: Path,
+    title: str,
+    subreddit: str | None = None,
+    flair_id: str | None = None,
+):
+    session = Session()
+    session.headers["User-Agent"] = __user_agent__
+    reddit = OAuth2Client.load_from_file(
+        __config_path__ / f"{auth_alias}.json",
+        session=session,
+    )
+    streamff = Streamff(session=session)
+    res = streamff.upload_from_file(media_path)
+
+    if res.status_code != 200:
+        raise Exception("Invalid response while uploading file to " +
+                        "Streamff!")
+
+    vid_id = res.url.split('https://streamff.com/api/videos/upload/')[1]
+    reddit.submit_url(
+        title,
+        f"https://streamff.com/v/{vid_id}",
+        subreddit=subreddit,
+        flair_id=flair_id,
+    )
+
+
 def __parse_args(args: Namespace):
     if not __config_path__.is_dir():
         __config_path__.mkdir(parents=True)
@@ -672,6 +767,21 @@ def __parse_args(args: Namespace):
                 f"No authorization alias with key {args.alias} found!",
             )
 
+    elif args.action == "post-streamff":
+        if (__config_path__ / f"{args.alias}.json").is_file():
+            __post_streamff(
+                args.alias,
+                args.media_path,
+                args.title,
+                subreddit=args.subreddit,
+                flair_id=args.flair_id,
+            )
+
+        else:
+            raise KeyError(
+                f"No authorization alias with key {args.alias} found!",
+            )
+
     else:
         raise ValueError(f'Invalid action "{args.action}"!')
 
@@ -728,5 +838,11 @@ def console_main():
     post_streamwo_parser.add_argument("title")
     post_streamwo_parser.add_argument("--subreddit")
     post_streamwo_parser.add_argument("--flair-id")
+    post_streamff_parser = subparsers.add_parser("post-streamff")
+    post_streamff_parser.add_argument("alias")
+    post_streamff_parser.add_argument("media_path", type=Path)
+    post_streamff_parser.add_argument("title")
+    post_streamff_parser.add_argument("--subreddit")
+    post_streamff_parser.add_argument("--flair-id")
 
     __parse_args(parser.parse_args())
