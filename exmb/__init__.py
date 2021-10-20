@@ -82,7 +82,6 @@ def __run_bot(auth_alias: str, **listing_kwargs: str | int):
     juststreamlive = JustStreamLive(session=session)
     streamable = Streamable(session=session)
     streamja = Streamja(session=session)
-    streamwo = Streamwo(session=session)
     streamff = Streamff(session=session)
 
     if "before" not in kwargs:
@@ -156,7 +155,6 @@ def __run_bot(auth_alias: str, **listing_kwargs: str | int):
             reddit,
             streamable,
             streamja,
-            streamwo,
             juststreamlive,
             streamff,
         )
@@ -179,7 +177,6 @@ def __mirror_for_posts_by_id(
     juststreamlive = JustStreamLive(session=session)
     streamable = Streamable(session=session)
     streamja = Streamja(session=session)
-    streamwo = Streamwo(session=session)
     streamff = Streamff(session=session)
 
     res = reddit.info(ids=post_ids, subreddit=subreddit)
@@ -210,7 +207,6 @@ def __mirror_for_posts_by_id(
         reddit,
         streamable,
         streamja,
-        streamwo,
         juststreamlive,
         streamff,
     )
@@ -222,7 +218,6 @@ def __mirror_for_posts(
     reddit: OAuth2Client,
     streamable: Streamable,
     streamja: Streamja,
-    streamwo: Streamwo,
     juststreamlive: JustStreamLive,
     streamff: Streamff,
 ):
@@ -231,8 +226,8 @@ def __mirror_for_posts(
 
         sab_mirror_res = None
         sja_mirror_res = None
-        swo_mirror_res = None
         jsl_mirror_res = None
+        sff_mirror_res = None
 
         if not vid_url.startswith((
             "https://streamable.com/",
@@ -276,8 +271,6 @@ def __mirror_for_posts(
                 juststreamlive.mirror_streamable_video(streamable_id)
             sja_mirror_res = \
                 streamja.upload_video(media_data, "Mirror.mp4")
-            swo_mirror_res = \
-                streamwo.upload_video(media_data, "Mirror.mp4")
             sff_mirror_res = \
                 streamff.upload_video(media_data, "Mirror.mp4")
 
@@ -320,8 +313,6 @@ def __mirror_for_posts(
                 juststreamlive.mirror_streamja_video(streamja_id)
             sja_mirror_res = \
                 streamja.upload_video(media_data, "Mirror.mp4")
-            swo_mirror_res = \
-                streamwo.upload_video(media_data, "Mirror.mp4")
             sff_mirror_res = \
                 streamff.upload_video(media_data, "Mirror.mp4")
 
@@ -360,8 +351,6 @@ def __mirror_for_posts(
                 juststreamlive.mirror_streamwo_video(streamwo_id)
             sja_mirror_res = \
                 streamja.upload_video(media_data, "Mirror.mp4")
-            swo_mirror_res = \
-                streamwo.upload_video(media_data, "Mirror.mp4")
             sff_mirror_res = \
                 streamff.upload_video(media_data, "Mirror.mp4")
 
@@ -397,11 +386,9 @@ def __mirror_for_posts(
                 mirror_title=post["data"]["title"],
             )
             jsl_mirror_res = \
-                juststreamlive.upload_video(media_data, streamwo_id)
+                juststreamlive.upload_video(media_data, "Mirror.mp4")
             sja_mirror_res = \
                 streamja.upload_video(media_data, "Mirror.mp4")
-            swo_mirror_res = \
-                streamwo.upload_video(media_data, "Mirror.mp4")
             sff_mirror_res = \
                 streamff.upload_video(media_data, "Mirror.mp4")
 
@@ -437,15 +424,6 @@ def __mirror_for_posts(
 
         else:
             print(f"Streamja mirror failed for {post['data']['name']}!")
-
-        if swo_mirror_res.status_code == 200:
-            print(f"Streamwo mirror created for {post['data']['name']}!")
-            mirrors.append(
-                f"https://streamwo.com/{swo_mirror_res.text}",
-            )
-
-        else:
-            print(f"Streamwo mirror failed for {post['data']['name']}!")
 
         if sff_mirror_res.status_code == 200:
             print(f"Streamff mirror created for {post['data']['name']}!")
