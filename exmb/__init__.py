@@ -402,7 +402,7 @@ def __mirror_for_posts(
             )
 
             if res.status_code != 200:
-                print("Invalid response while trying to retrieve posts " +
+                print("Invalid response while trying to retrieve comments " +
                       "listing!")
 
             else:
