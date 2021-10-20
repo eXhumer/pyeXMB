@@ -428,6 +428,7 @@ def __mirror_for_posts(
         if sff_mirror_res.status_code == 200:
             print(f"Streamff mirror created for {post['data']['name']}!")
             mirrors.append(
+                "https://streamff.com/v/" +
                 sff_mirror_res.url.split(
                     "https://streamff.com/api/videos/upload/"
                 )[1]
