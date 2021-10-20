@@ -425,6 +425,119 @@ def __mirror_for_posts(
             print(F"Failed to create any mirror for {post['data']['name']}")
 
 
+def __post_juststreamlive(
+    auth_alias: str,
+    media_path: Path,
+    title: str,
+    subreddit: str | None = None,
+    flair_id: str | None = None,
+):
+    session = Session()
+    session.headers["User-Agent"] = __user_agent__
+    reddit = OAuth2Client.load_from_file(
+        __config_path__ / f"{auth_alias}.json",
+        session=session,
+    )
+    juststreamlive = JustStreamLive(session=session)
+    res = juststreamlive.upload_from_file(media_path)
+
+    if res.status_code != 200:
+        raise Exception("Invalid response while uploading file to " +
+                        "JustStreamLive!")
+
+    reddit.submit_url(
+        title,
+        f"https://juststream.live/{res.json()['id']}",
+        subreddit=subreddit,
+        flair_id=flair_id,
+    )
+
+
+def __post_streamable(
+    auth_alias: str,
+    media_path: Path,
+    title: str,
+    subreddit: str | None = None,
+    flair_id: str | None = None,
+):
+    session = Session()
+    session.headers["User-Agent"] = __user_agent__
+    reddit = OAuth2Client.load_from_file(
+        __config_path__ / f"{auth_alias}.json",
+        session=session,
+    )
+    streamable = Streamable(session=session)
+
+    res = streamable.upload_from_file(media_path, video_title=title)
+
+    if res.status_code != 200 or res.json()["error"] is not None:
+        raise Exception("Invalid response while uploading file to " +
+                        "Streamable!")
+
+    reddit.submit_url(
+        title,
+        res.json()["url"],
+        subreddit=subreddit,
+        flair_id=flair_id,
+    )
+
+
+def __post_streamja(
+    auth_alias: str,
+    media_path: Path,
+    title: str,
+    subreddit: str | None = None,
+    flair_id: str | None = None,
+):
+    session = Session()
+    session.headers["User-Agent"] = __user_agent__
+    reddit = OAuth2Client.load_from_file(
+        __config_path__ / f"{auth_alias}.json",
+        session=session,
+    )
+    streamja = Streamja(session=session)
+    res = streamja.upload_from_file(media_path)
+
+    if res.status_code != 200 or res.json()["status"] == 0:
+        raise Exception("Invalid response while uploading file to " +
+                        "Streamja!")
+
+    reddit.submit_url(
+        title,
+        f"https://streamja.com/embed{res.json()['url']}",
+        subreddit=subreddit,
+        flair_id=flair_id,
+    )
+
+
+def __post_streamwo(
+    auth_alias: str,
+    media_path: Path,
+    title: str,
+    subreddit: str | None = None,
+    flair_id: str | None = None,
+):
+    session = Session()
+    session.headers["User-Agent"] = __user_agent__
+    reddit = OAuth2Client.load_from_file(
+        __config_path__ / f"{auth_alias}.json",
+        session=session,
+    )
+    streamwo = Streamwo(session=session)
+    res = streamwo.upload_from_file(media_path)
+
+    if res.status_code != 200:
+        raise Exception("Invalid response while uploading file to " +
+                        "Streamwo!")
+
+    reddit.submit_url(
+        title,
+        f"https://streamwo.com/{res.text}",
+        subreddit=subreddit,
+        flair_id=flair_id,
+    )
+
+
 def __parse_args(args: Namespace):
     if not __config_path__.is_dir():
         __config_path__.mkdir(parents=True)
@@ -499,6 +612,66 @@ def __parse_args(args: Namespace):
                 f"No authorization alias with key {args.alias} found!",
             )
 
+    elif args.action == "post-juststreamlive":
+        if (__config_path__ / f"{args.alias}.json").is_file():
+            __post_juststreamlive(
+                args.alias,
+                args.media_path,
+                args.title,
+                subreddit=args.subreddit,
+                flair_id=args.flair_id,
+            )
+
+        else:
+            raise KeyError(
+                f"No authorization alias with key {args.alias} found!",
+            )
+
+    elif args.action == "post-streamable":
+        if (__config_path__ / f"{args.alias}.json").is_file():
+            __post_streamable(
+                args.alias,
+                args.media_path,
+                args.title,
+                subreddit=args.subreddit,
+                flair_id=args.flair_id,
+            )
+
+        else:
+            raise KeyError(
+                f"No authorization alias with key {args.alias} found!",
+            )
+
+    elif args.action == "post-streamja":
+        if (__config_path__ / f"{args.alias}.json").is_file():
+            __post_streamja(
+                args.alias,
+                args.media_path,
+                args.title,
+                subreddit=args.subreddit,
+                flair_id=args.flair_id,
+            )
+
+        else:
+            raise KeyError(
+                f"No authorization alias with key {args.alias} found!",
+            )
+
+    elif args.action == "post-streamwo":
+        if (__config_path__ / f"{args.alias}.json").is_file():
+            __post_streamwo(
+                args.alias,
+                args.media_path,
+                args.title,
+                subreddit=args.subreddit,
+                flair_id=args.flair_id,
+            )
+
+        else:
+            raise KeyError(
+                f"No authorization alias with key {args.alias} found!",
+            )
+
     else:
         raise ValueError(f'Invalid action "{args.action}"!')
 
@@ -531,4 +704,29 @@ def console_main():
         "post_ids", metavar="post_id", nargs="+",
     )
     mirror_for_post_parser.add_argument("--subreddit")
+    post_juststreamlive_parser = subparsers.add_parser("post-juststreamlive")
+    post_juststreamlive_parser.add_argument("alias")
+    post_juststreamlive_parser.add_argument("media_path", type=Path)
+    post_juststreamlive_parser.add_argument("title")
+    post_juststreamlive_parser.add_argument("--subreddit")
+    post_juststreamlive_parser.add_argument("--flair-id")
+    post_streamable_parser = subparsers.add_parser("post-streamable")
+    post_streamable_parser.add_argument("alias")
+    post_streamable_parser.add_argument("media_path", type=Path)
+    post_streamable_parser.add_argument("title")
+    post_streamable_parser.add_argument("--subreddit")
+    post_streamable_parser.add_argument("--flair-id")
+    post_streamja_parser = subparsers.add_parser("post-streamja")
+    post_streamja_parser.add_argument("alias")
+    post_streamja_parser.add_argument("media_path", type=Path)
+    post_streamja_parser.add_argument("title")
+    post_streamja_parser.add_argument("--subreddit")
+    post_streamja_parser.add_argument("--flair-id")
+    post_streamwo_parser = subparsers.add_parser("post-streamwo")
+    post_streamwo_parser.add_argument("alias")
+    post_streamwo_parser.add_argument("media_path", type=Path)
+    post_streamwo_parser.add_argument("title")
+    post_streamwo_parser.add_argument("--subreddit")
+    post_streamwo_parser.add_argument("--flair-id")
+
     __parse_args(parser.parse_args())
