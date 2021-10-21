@@ -442,7 +442,7 @@ def __mirror_for_posts(
 
             res = reddit.comments(
                 post["data"]["id"],
-                subreddit="formula1",
+                subreddit=post["data"]["subreddit"],
                 limit=1,
             )
 
