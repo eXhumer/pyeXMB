@@ -254,7 +254,7 @@ def __mirror_for_posts(
 
             media_res = session.get(media_url)
 
-            if media_res != 200:
+            if media_res.status_code != 200:
                 print("Invalid response while trying to retrieve media" +
                       f" content from {media_url} for Streamable Video " +
                       f"{streamable_id} for Reddit Post " +
@@ -266,7 +266,7 @@ def __mirror_for_posts(
             sab_mirror_res = streamable.clip_video(
                 streamable_id,
                 mirror_title=post["data"]["title"],
-            ),
+            )
             jsl_mirror_res = \
                 juststreamlive.mirror_streamable_video(streamable_id)
             sja_mirror_res = \
