@@ -450,7 +450,10 @@ def __mirror_for_posts(
                 print("Invalid response while trying to retrieve comments " +
                       "listing!")
 
-            elif len(res.json()) > 1:
+            elif (
+                len(res.json()) == 2
+                and len(res.json()[1]["data"]["children"]) > 0
+            ):
                 post_first_comment = res.json()[1]["data"]["children"][0]
 
                 if post_first_comment["data"]["stickied"] is True:
