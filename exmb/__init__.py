@@ -450,11 +450,17 @@ def __mirror_for_posts(
                 print("Invalid response while trying to retrieve comments " +
                       "listing!")
 
-            else:
+            elif len(res.json()) > 1:
                 post_first_comment = res.json()[1]["data"]["children"][0]
 
                 if post_first_comment["data"]["stickied"] is True:
                     parent_id = post_first_comment["data"]["name"]
+
+                else:
+                    print(f"No sticked comment under post {parent_id}")
+
+            else:
+                print(f"No comments under post {parent_id}")
 
             reddit.comment(
                 "\n\n".join([
