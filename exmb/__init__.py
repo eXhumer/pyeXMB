@@ -106,7 +106,7 @@ def __run_bot(
             **kwargs,
         )
 
-        if res.status_code != 200:
+        if not res.ok:
             raise ValueError(
                 "Invalid response while trying to retrieve latest post name!",
             )
@@ -131,7 +131,7 @@ def __run_bot(
             **kwargs,
         )
 
-        if res.status_code != 200:
+        if not res.ok:
             raise ValueError(
                 "Invalid response while trying to retrieve posts listing!",
             )
@@ -158,7 +158,7 @@ def __run_bot(
                 **kwargs,
             )
 
-            if res.status_code != 200:
+            if not res.ok:
                 raise ValueError(
                     "Invalid response while trying to retrieve posts listing!",
                 )
@@ -195,7 +195,7 @@ def __mirror_for_posts_by_id(
 
     res = reddit.info(ids=post_ids, subreddit=subreddit)
 
-    if res.status_code != 200:
+    if not res.ok:
         raise ValueError(
             "Invalid response while trying to retrieve posts by ID!",
         )
@@ -261,7 +261,7 @@ def __mirror_for_posts(
 
             vid_res = get_streamable_video(session, streamable_id)
 
-            if vid_res.status_code != 200:
+            if not vid_res.ok:
                 print("Unable to get direct video link from Streamable " +
                       f"video ID {streamable_id}. Video not available / " +
                       "taken down!")
@@ -294,7 +294,7 @@ def __mirror_for_posts(
                 streamja_id,
             )
 
-            if vid_res.status_code != 200:
+            if not vid_res.ok:
                 print("Unable to get direct video link from Streamja " +
                       f"video ID {streamja_id}. Video not available / " +
                       "taken down!")
@@ -323,7 +323,7 @@ def __mirror_for_posts(
                 streamwo_id,
             )
 
-            if vid_res.status_code != 200:
+            if not vid_res.ok:
                 print("Unable to get direct video link from Streamwo " +
                       f"video ID {streamwo_id}. Video not available / " +
                       "taken down!")
@@ -352,7 +352,7 @@ def __mirror_for_posts(
                 streamff_id,
             )
 
-            if vid_res.status_code != 200:
+            if not vid_res.ok:
                 print("Unable to get direct video link from Streamff " +
                       f"video ID {streamff_id}. Video not available / " +
                       "taken down!")
@@ -374,7 +374,7 @@ def __mirror_for_posts(
         mirrors = []
 
         if (
-            sab_mirror_res.status_code == 200
+            sab_mirror_res.ok
             and sab_mirror_res.json()["error"] is None
         ):
             print(f"Streamable mirror created for {post['data']['name']}!")
@@ -383,7 +383,7 @@ def __mirror_for_posts(
         else:
             print(f"Streamable mirror failed for {post['data']['name']}!")
 
-        if jsl_mirror_res.status_code == 200:
+        if jsl_mirror_res.ok:
             jsl_mid = jsl_mirror_res.json()["id"]
             print("Juststreamlive mirror created for " +
                   f"{post['data']['name']}!")
@@ -394,7 +394,7 @@ def __mirror_for_posts(
                   f"{post['data']['name']}!")
 
         if (
-            sja_mirror_res.status_code == 200
+            sja_mirror_res.ok
             and sja_mirror_res.json()["status"] == 1
         ):
             sja_mid = sja_mirror_res.json()["url"]
@@ -404,7 +404,7 @@ def __mirror_for_posts(
         else:
             print(f"Streamja mirror failed for {post['data']['name']}!")
 
-        if sff_mirror_res.status_code == 200:
+        if sff_mirror_res.ok:
             print(f"Streamff mirror created for {post['data']['name']}!")
             mirrors.append(
                 "https://streamff.com/v/" +
@@ -425,7 +425,7 @@ def __mirror_for_posts(
                 limit=1,
             )
 
-            if res.status_code != 200:
+            if not res.ok:
                 print("Invalid response while trying to retrieve comments " +
                       "listing!")
 
@@ -474,7 +474,7 @@ def __post_juststreamlive(
     juststreamlive = JustStreamLive(session=session)
     res = juststreamlive.upload_from_file(media_path)
 
-    if res.status_code != 200:
+    if not res.ok:
         raise Exception("Invalid response while uploading file to " +
                         "JustStreamLive!")
 
@@ -503,7 +503,7 @@ def __post_streamable(
 
     res = streamable.upload_from_file(media_path, video_title=title)
 
-    if res.status_code != 200 or res.json()["error"] is not None:
+    if not res.ok or res.json()["error"] is not None:
         raise Exception("Invalid response while uploading file to " +
                         "Streamable!")
 
@@ -531,7 +531,7 @@ def __post_streamja(
     streamja = Streamja(session=session)
     res = streamja.upload_from_file(media_path)
 
-    if res.status_code != 200 or res.json()["status"] == 0:
+    if not res.ok or res.json()["status"] == 0:
         raise Exception("Invalid response while uploading file to " +
                         "Streamja!")
 
@@ -559,7 +559,7 @@ def __post_streamwo(
     streamwo = Streamwo(session=session)
     res = streamwo.upload_from_file(media_path)
 
-    if res.status_code != 200:
+    if not res.ok:
         raise Exception("Invalid response while uploading file to " +
                         "Streamwo!")
 
@@ -587,7 +587,7 @@ def __post_streamff(
     streamff = Streamff(session=session)
     res = streamff.upload_from_file(media_path)
 
-    if res.status_code != 200:
+    if not res.ok:
         raise Exception("Invalid response while uploading file to " +
                         "Streamff!")
 
