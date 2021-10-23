@@ -66,7 +66,15 @@ __highlight_search_query__ = " AND ".join((
 ))
 
 
-def __run_bot(auth_alias: str, **listing_kwargs: str | int):
+def __run_bot(
+    auth_alias: str,
+    subreddit: str | None = None,
+    custom_query: str | None = None,
+    **listing_kwargs: str | int,
+):
+    if subreddit is None:
+        subreddit = "formula1"
+
     kwargs = {}
 
     for key, val in listing_kwargs.items():
@@ -88,8 +96,10 @@ def __run_bot(auth_alias: str, **listing_kwargs: str | int):
         print("before not specified! attempting to retrieve latest post name")
 
         res = reddit.search(
-            __highlight_search_query__,
-            subreddit="formula1",
+            __highlight_search_query__
+            if custom_query is None
+            else custom_query,
+            subreddit=subreddit,
             show="all",
             sort="new",
             type="link",
@@ -111,8 +121,10 @@ def __run_bot(auth_alias: str, **listing_kwargs: str | int):
         print(f"Searching all posts before post name {kwargs['before']}")
 
         res = reddit.search(
-            __highlight_search_query__,
-            subreddit="formula1",
+            __highlight_search_query__
+            if custom_query is None
+            else custom_query,
+            subreddit=subreddit,
             show="all",
             sort="new",
             type="link",
@@ -136,8 +148,10 @@ def __run_bot(auth_alias: str, **listing_kwargs: str | int):
             })
 
             res = reddit.search(
-                __highlight_search_query__,
-                subreddit="formula1",
+                __highlight_search_query__
+                if custom_query is None
+                else custom_query,
+                subreddit=subreddit,
                 show="all",
                 sort="new",
                 type="link",
@@ -675,6 +689,8 @@ def __parse_args(args: Namespace):
                 args.alias,
                 before=args.before,
                 limit=args.limit,
+                subreddit=args.subreddit,
+                custom_query=args.custom_search_query,
             )
 
         else:
@@ -796,6 +812,8 @@ def console_main():
     run_parser.add_argument("alias")
     run_parser.add_argument("--before")
     run_parser.add_argument("--limit", type=int)
+    run_parser.add_argument("--subreddit")
+    run_parser.add_argument("--custom-search-query")
     mirror_for_post_parser = subparsers.add_parser("mirror-for-post")
     mirror_for_post_parser.add_argument("alias")
     mirror_for_post_parser.add_argument(
