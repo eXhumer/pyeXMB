@@ -27,10 +27,10 @@ from exvhp.service import (
     JustStreamLive, Streamable, Streamja, Streamwo, Streamff,
 )
 from exvhp.utils import (
-    get_streamable_video_url,
-    get_streamja_video_url,
-    get_streamwo_video_url,
-    get_streamff_video_url,
+    get_streamable_video,
+    get_streamja_video,
+    get_streamwo_video,
+    get_streamff_video,
 )
 from requests import Session
 
@@ -258,24 +258,16 @@ def __mirror_for_posts(
             streamable_id = vid_url.split("https://streamable.com/")[1]
             print(f"Processing {post['data']['name']} with Streamable " +
                   f"Video {streamable_id}")
-            media_url = get_streamable_video_url(session, streamable_id)
 
-            if media_url is None:
+            vid_res = get_streamable_video(session, streamable_id)
+
+            if vid_res.status_code != 200:
                 print("Unable to get direct video link from Streamable " +
                       f"video ID {streamable_id}. Video not available / " +
                       "taken down!")
                 continue
 
-            media_res = session.get(media_url)
-
-            if media_res.status_code != 200:
-                print("Invalid response while trying to retrieve media" +
-                      f" content from {media_url} for Streamable Video " +
-                      f"{streamable_id} for Reddit Post " +
-                      f"{post['data']['name']}!")
-                continue
-
-            media_data = BytesIO(media_res.content)
+            media_data = BytesIO(vid_res.content)
 
             sab_mirror_res = streamable.clip_video(
                 streamable_id,
@@ -297,27 +289,18 @@ def __mirror_for_posts(
             print(f"Processing {post['data']['name']} with Streamja " +
                   f"Video {streamja_id}")
 
-            media_url = get_streamja_video_url(
+            vid_res = get_streamja_video(
                 session,
                 streamja_id,
             )
 
-            if media_url is None:
+            if vid_res.status_code != 200:
                 print("Unable to get direct video link from Streamja " +
                       f"video ID {streamja_id}. Video not available / " +
                       "taken down!")
                 continue
 
-            media_res = session.get(media_url)
-
-            if media_res.status_code != 200:
-                print("Invalid response while trying to retrieve media" +
-                      f" content from {media_url} for Streamja Video " +
-                      f"{streamja_id} for Reddit Post " +
-                      f"{post['data']['name']}!")
-                continue
-
-            media_data = BytesIO(media_res.content)
+            media_data = BytesIO(vid_res.content)
 
             sab_mirror_res = streamable.clip_streamja_video(
                 streamja_id,
@@ -335,27 +318,18 @@ def __mirror_for_posts(
             print(f"Processing {post['data']['name']} with Streamwo " +
                   f"Video {streamwo_id}")
 
-            media_url = get_streamwo_video_url(
+            vid_res = get_streamwo_video(
                 session,
                 streamwo_id,
             )
 
-            if media_url is None:
+            if vid_res.status_code != 200:
                 print("Unable to get direct video link from Streamwo " +
                       f"video ID {streamwo_id}. Video not available / " +
                       "taken down!")
                 continue
 
-            media_res = session.get(media_url)
-
-            if media_res.status_code != 200:
-                print("Invalid response while trying to retrieve media" +
-                      f" content from {media_url} for Streamwo Video " +
-                      f"{streamwo_id} for Reddit Post " +
-                      f"{post['data']['name']}!")
-                continue
-
-            media_data = BytesIO(media_res.content)
+            media_data = BytesIO(vid_res.content)
 
             sab_mirror_res = streamable.clip_streamwo_video(
                 streamwo_id,
@@ -373,27 +347,18 @@ def __mirror_for_posts(
             print(f"Processing {post['data']['name']} with Streamff " +
                   f"Video {streamff_id}")
 
-            media_url = get_streamff_video_url(
+            vid_res = get_streamff_video(
                 session,
                 streamff_id,
             )
 
-            if media_url is None:
+            if vid_res.status_code != 200:
                 print("Unable to get direct video link from Streamff " +
                       f"video ID {streamff_id}. Video not available / " +
                       "taken down!")
                 continue
 
-            media_res = session.get(media_url)
-
-            if media_res.status_code != 200:
-                print("Invalid response while trying to retrieve media" +
-                      f" content from {media_url} for Streamff Video " +
-                      f"{streamff_id} for Reddit Post " +
-                      f"{post['data']['name']}!")
-                continue
-
-            media_data = BytesIO(media_res.content)
+            media_data = BytesIO(vid_res.content)
 
             sab_mirror_res = streamable.clip_streamff_video(
                 streamff_id,
