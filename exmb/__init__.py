@@ -99,7 +99,7 @@ def __run_bot(
 
             listing_posts = res.json()["data"]["children"]
 
-            for post in reversed(listing_posts):
+            for post in listing_posts:
                 if (
                     post["data"]["link_flair_text"] in __flairs__
                     and post["data"]["author"] in __clippers__
