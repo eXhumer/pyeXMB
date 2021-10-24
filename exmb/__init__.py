@@ -378,20 +378,27 @@ def __mirror_for_posts(
             and sab_mirror_res.json()["error"] is None
         ):
             print(f"Streamable mirror created for {post['data']['name']}!")
-            mirrors.append(sab_mirror_res.json()["url"])
+            mirrors.append(f"[Streamable]({sab_mirror_res.json()['url']})")
 
         else:
             print(f"Streamable mirror failed for {post['data']['name']}!")
+            print(f"|- Status Code: {sab_mirror_res.status_code}")
+            print(f"|- Request URL: {sab_mirror_res.url}")
+            print(f"|- Response Text: {sab_mirror_res.text}")
 
         if jsl_mirror_res.ok:
             jsl_mid = jsl_mirror_res.json()["id"]
             print("Juststreamlive mirror created for " +
                   f"{post['data']['name']}!")
-            mirrors.append(f"https://juststream.live/{jsl_mid}")
+            mirrors.append(
+                f"[JustStreamLive](https://juststream.live/{jsl_mid})",
+            )
 
         else:
-            print("Juststreamlive mirror failed for " +
-                  f"{post['data']['name']}!")
+            print(f"Juststreamlive mirror failed for {post['data']['name']}!")
+            print(f"|- Status Code: {jsl_mirror_res.status_code}")
+            print(f"|- Request URL: {jsl_mirror_res.url}")
+            print(f"|- Response Text: {jsl_mirror_res.text}")
 
         if (
             sja_mirror_res.ok
@@ -399,10 +406,16 @@ def __mirror_for_posts(
         ):
             sja_mid = sja_mirror_res.json()["url"]
             print(f"Streamja mirror created for {post['data']['name']}!")
-            mirrors.append(f"https://streamja.com/embed{sja_mid}")
+            " | ".join((
+                f"[Streamja Embed](https://streamja.com/embed{sja_mid})",
+                f"[Streamja Non-Embed](https://streamja.com{sja_mid})",
+            ))
 
         else:
             print(f"Streamja mirror failed for {post['data']['name']}!")
+            print(f"|- Status Code: {sja_mirror_res.status_code}")
+            print(f"|- Request URL: {sja_mirror_res.url}")
+            print(f"|- Response Text: {sja_mirror_res.text}")
 
         if sff_mirror_res.ok:
             print(f"Streamff mirror created for {post['data']['name']}!")
@@ -415,6 +428,9 @@ def __mirror_for_posts(
 
         else:
             print(f"Streamff mirror failed for {post['data']['name']}!")
+            print(f"|- Status Code: {sff_mirror_res.status_code}")
+            print(f"|- Request URL: {sff_mirror_res.url}")
+            print(f"|- Response Text: {sff_mirror_res.text}")
 
         if len(mirrors) > 0:
             parent_id = post["data"]["name"]
@@ -537,7 +553,7 @@ def __post_streamja(
 
     reddit.submit_url(
         title,
-        f"https://streamja.com/embed{res.json()['url']}",
+        f"https://streamja.com{res.json()['url']}",
         subreddit=subreddit,
         flair_id=flair_id,
     )
