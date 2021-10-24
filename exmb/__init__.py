@@ -661,7 +661,6 @@ def __parse_args(args: Namespace):
                 before=args.before,
                 limit=args.limit,
                 subreddit=args.subreddit,
-                custom_query=args.custom_search_query,
             )
 
         else:
@@ -784,7 +783,6 @@ def console_main():
     run_parser.add_argument("--before")
     run_parser.add_argument("--limit", type=int)
     run_parser.add_argument("--subreddit")
-    run_parser.add_argument("--custom-search-query")
     mirror_for_post_parser = subparsers.add_parser("mirror-for-post")
     mirror_for_post_parser.add_argument("alias")
     mirror_for_post_parser.add_argument(
