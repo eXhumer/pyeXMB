@@ -37,39 +37,24 @@ from requests import Session
 __version__ = require(__package__)[0].version
 __config_path__ = Path.home() / ".config" / __package__
 __user_agent__ = f"{__package__}/{__version__}"
-__highlight_search_query__ = " AND ".join((
-    f"({query_part})"
-    for query_part
-    in (
-        " OR ".join((
-            f"author:{author}"
-            for author
-            in (
-                "ContentPuff",
-                "magony",
-                "sefn19",
-                "DoeEensGek",
-                "asd241",
-                "TwoPlanksPrevail",
-            )
-        )),
-        " OR ".join((
-            f"flair:{flair}"
-            for flair
-            in (
-                "Video",
-                "Highlight",
-                '":post-video: Video"',
-            )
-        )),
-    )
-))
+__clippers__ = (
+    "ContentPuff",
+    "magony",
+    "sefn19",
+    "DoeEensGek",
+    "asd241",
+    "TwoPlanksPrevail",
+)
+__flairs__ = (
+    "Video",
+    "Highlight",
+    ":post-video: Video",
+)
 
 
 def __run_bot(
     auth_alias: str,
     subreddit: str | None = None,
-    custom_query: str | None = None,
     **listing_kwargs: str | int,
 ):
     if subreddit is None:
@@ -92,43 +77,49 @@ def __run_bot(
     streamja = Streamja(session=session)
     streamff = Streamff(session=session)
 
-    if "before" not in kwargs:
+    if "before" not in kwargs or kwargs["before"] is None:
         print("before not specified! attempting to retrieve latest post name")
+        params = {"show": "all"}
+        kwargs["before"] = None
 
-        res = reddit.search(
-            __highlight_search_query__
-            if custom_query is None
-            else custom_query,
-            subreddit=subreddit,
-            show="all",
-            sort="new",
-            type="link",
-            **kwargs,
-        )
-
-        if not res.ok:
-            raise ValueError(
-                "Invalid response while trying to retrieve latest post name!",
+        while kwargs["before"] is None:
+            res = reddit.get(
+                f"r/{subreddit}/new",
+                params=params,
             )
 
-        kwargs.update({
-            "before": res.json()["data"]["children"][0]["data"]["name"],
-        })
+            if not res.ok:
+                raise ValueError(
+                    "Invalid response while trying to retrieve latest post " +
+                    "name!",
+                )
+
+            if res.json()["data"]["dist"] == 0:
+                raise Exception(f"Unable to any valid post in {subreddit}")
+
+            listing_posts = res.json()["data"]["children"]
+
+            for post in listing_posts:
+                if (
+                    post["data"]["link_flair_text"] in __flairs__
+                    and post["data"]["author"] in __clippers__
+                ):
+                    kwargs.update({"before": post["data"]["name"]})
+                    break
+
+            if kwargs["before"] is None:
+                params.update({
+                    "after": listing_posts[-1]["data"]["name"],
+                })
 
         print(f"Latest post name: {kwargs['before']}")
 
     while True:
-        print(f"Searching all posts before post name {kwargs['before']}")
+        print(f"Retrieving all posts before post name {kwargs['before']}")
 
-        res = reddit.search(
-            __highlight_search_query__
-            if custom_query is None
-            else custom_query,
-            subreddit=subreddit,
-            show="all",
-            sort="new",
-            type="link",
-            **kwargs,
+        res = reddit.get(
+            f"r/{subreddit}/new",
+            params=kwargs,
         )
 
         if not res.ok:
@@ -139,23 +130,22 @@ def __run_bot(
         highlight_posts = []
 
         while res.json()["data"]["dist"] != 0:
-            new_listing_entries = res.json()["data"]["children"]
-            new_listing_entries.extend(highlight_posts)
-            highlight_posts = new_listing_entries
+            subreddit_listing_posts = res.json()["data"]["children"]
+
+            for post in subreddit_listing_posts:
+                if (
+                    post["data"]["link_flair_text"] in __flairs__
+                    and post["data"]["author"] in __clippers__
+                ):
+                    highlight_posts.append(post)
 
             kwargs.update({
-                "before": res.json()["data"]["children"][0]["data"]["name"],
+                "before": subreddit_listing_posts[0]["data"]["name"],
             })
 
-            res = reddit.search(
-                __highlight_search_query__
-                if custom_query is None
-                else custom_query,
-                subreddit=subreddit,
-                show="all",
-                sort="new",
-                type="link",
-                **kwargs,
+            res = reddit.get(
+                f"r/{subreddit}/new",
+                params=kwargs,
             )
 
             if not res.ok:
