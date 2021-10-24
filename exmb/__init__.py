@@ -99,7 +99,7 @@ def __run_bot(
 
             listing_posts = res.json()["data"]["children"]
 
-            for post in listing_posts:
+            for post in reversed(listing_posts):
                 if (
                     post["data"]["link_flair_text"] in __flairs__
                     and post["data"]["author"] in __clippers__
@@ -396,10 +396,12 @@ def __mirror_for_posts(
         ):
             sja_mid = sja_mirror_res.json()["url"]
             print(f"Streamja mirror created for {post['data']['name']}!")
-            " | ".join((
-                f"[Streamja Embed](https://streamja.com/embed{sja_mid})",
-                f"[Streamja Non-Embed](https://streamja.com{sja_mid})",
-            ))
+            mirrors.append(
+                " | ".join((
+                    f"[Streamja Embed](https://streamja.com/embed{sja_mid})",
+                    f"[Streamja Non-Embed](https://streamja.com{sja_mid})",
+                )),
+            )
 
         else:
             print(f"Streamja mirror failed for {post['data']['name']}!")
@@ -409,12 +411,10 @@ def __mirror_for_posts(
 
         if sff_mirror_res.ok:
             print(f"Streamff mirror created for {post['data']['name']}!")
-            mirrors.append(
-                "https://streamff.com/v/" +
-                sff_mirror_res.url.split(
-                    "https://streamff.com/api/videos/upload/"
-                )[1]
-            )
+            mirror_url = "https://streamff.com/v/" + sff_mirror_res.url.split(
+                "https://streamff.com/api/videos/upload/",
+            )[1]
+            mirrors.append(f"[Streamff]({mirror_url})")
 
         else:
             print(f"Streamff mirror failed for {post['data']['name']}!")
