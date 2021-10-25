@@ -23,14 +23,8 @@ from time import sleep
 from typing import Any, Dict, List
 
 from exrc.client import OAuth2Client
-from exvhp.service import (
+from exvhp.client import (
     JustStreamLive, Streamable, Streamja, Streamwo, Streamff,
-)
-from exvhp.utils import (
-    get_streamable_video,
-    get_streamja_video,
-    get_streamwo_video,
-    get_streamff_video,
 )
 from requests import Session
 
@@ -52,6 +46,23 @@ __flairs__ = (
 )
 
 
+def __bot_clients_setup(auth_alias: str):
+    session = Session()
+    session.headers["User-Agent"] = __user_agent__
+
+    return (
+        OAuth2Client.load_from_file(
+            __config_path__ / f"{auth_alias}.json",
+            session=session,
+        ),
+        JustStreamLive(session=session),
+        Streamable(session=session),
+        Streamja(session=session),
+        Streamff(session=session),
+        Streamwo(session=session),
+    )
+
+
 def __run_bot(
     auth_alias: str,
     subreddit: str | None = None,
@@ -66,16 +77,14 @@ def __run_bot(
         if key in ("before", "limit") and val is not None:
             kwargs[key] = val
 
-    session = Session()
-    session.headers["User-Agent"] = __user_agent__
-    reddit = OAuth2Client.load_from_file(
-        __config_path__ / f"{auth_alias}.json",
-        session=session,
-    )
-    juststreamlive = JustStreamLive(session=session)
-    streamable = Streamable(session=session)
-    streamja = Streamja(session=session)
-    streamff = Streamff(session=session)
+    (
+        reddit,
+        juststreamlive,
+        streamable,
+        streamja,
+        streamff,
+        streamwo,
+    ) = __bot_clients_setup(auth_alias)
 
     if "before" not in kwargs or kwargs["before"] is None:
         print("before not specified! attempting to retrieve latest post name")
@@ -155,12 +164,12 @@ def __run_bot(
 
         __mirror_for_posts(
             highlight_posts,
-            session,
             reddit,
             streamable,
             streamja,
             juststreamlive,
             streamff,
+            streamwo,
         )
 
         print("Sleeping for 120 seconds!")
@@ -172,16 +181,14 @@ def __mirror_for_posts_by_id(
     post_ids: List[str],
     subreddit: str | None = None,
 ):
-    session = Session()
-    session.headers["User-Agent"] = __user_agent__
-    reddit = OAuth2Client.load_from_file(
-        __config_path__ / f"{auth_alias}.json",
-        session=session,
-    )
-    juststreamlive = JustStreamLive(session=session)
-    streamable = Streamable(session=session)
-    streamja = Streamja(session=session)
-    streamff = Streamff(session=session)
+    (
+        reddit,
+        juststreamlive,
+        streamable,
+        streamja,
+        streamff,
+        streamwo,
+    ) = __bot_clients_setup(auth_alias)
 
     res = reddit.info(ids=post_ids, subreddit=subreddit)
 
@@ -207,23 +214,23 @@ def __mirror_for_posts_by_id(
 
     __mirror_for_posts(
         res.json()["data"]["children"],
-        session,
         reddit,
         streamable,
         streamja,
         juststreamlive,
         streamff,
+        streamwo,
     )
 
 
 def __mirror_for_posts(
     highlight_posts: List[Dict[str, Any]],
-    session: Session,
     reddit: OAuth2Client,
     streamable: Streamable,
     streamja: Streamja,
     juststreamlive: JustStreamLive,
     streamff: Streamff,
+    streamwo: Streamwo,
 ):
     for post in highlight_posts:
         vid_url: str = post["data"]["url"]
@@ -249,7 +256,7 @@ def __mirror_for_posts(
             print(f"Processing {post['data']['name']} with Streamable " +
                   f"Video {streamable_id}")
 
-            vid_res = get_streamable_video(session, streamable_id)
+            vid_res = streamable.get_video(streamable_id)
 
             if not vid_res.ok:
                 print("Unable to get direct video link from Streamable " +
@@ -279,10 +286,7 @@ def __mirror_for_posts(
             print(f"Processing {post['data']['name']} with Streamja " +
                   f"Video {streamja_id}")
 
-            vid_res = get_streamja_video(
-                session,
-                streamja_id,
-            )
+            vid_res = streamja.get_video(streamja_id)
 
             if not vid_res.ok:
                 print("Unable to get direct video link from Streamja " +
@@ -308,10 +312,7 @@ def __mirror_for_posts(
             print(f"Processing {post['data']['name']} with Streamwo " +
                   f"Video {streamwo_id}")
 
-            vid_res = get_streamwo_video(
-                session,
-                streamwo_id,
-            )
+            vid_res = streamwo.get_video(streamwo_id)
 
             if not vid_res.ok:
                 print("Unable to get direct video link from Streamwo " +
@@ -337,10 +338,7 @@ def __mirror_for_posts(
             print(f"Processing {post['data']['name']} with Streamff " +
                   f"Video {streamff_id}")
 
-            vid_res = get_streamff_video(
-                session,
-                streamff_id,
-            )
+            vid_res = streamff.get_video(streamff_id)
 
             if not vid_res.ok:
                 print("Unable to get direct video link from Streamff " +
