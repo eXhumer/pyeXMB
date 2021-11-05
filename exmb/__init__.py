@@ -148,9 +148,14 @@ def __run_bot(
                 ):
                     highlight_posts.append(post)
 
-            kwargs.update({
-                "before": subreddit_listing_posts[0]["data"]["name"],
-            })
+            for post in reversed(subreddit_listing_posts):
+                if (
+                    post["data"]["link_flair_text"] in __flairs__
+                    and post["data"]["author"] in __clippers__
+                ):
+                    kwargs.update({
+                        "before": post["data"]["name"],
+                    })
 
             res = reddit.get(
                 f"r/{subreddit}/new",
@@ -172,8 +177,8 @@ def __run_bot(
             streamwo,
         )
 
-        print("Sleeping for 120 seconds!")
-        sleep(120)
+        print("Sleeping for 10 seconds!")
+        sleep(10)
 
 
 def __mirror_for_posts_by_id(
@@ -366,7 +371,7 @@ def __mirror_for_posts(
             and sab_mirror_res.json()["error"] is None
         ):
             print(f"Streamable mirror created for {post['data']['name']}!")
-            mirrors.append(f"[Streamable]({sab_mirror_res.json()['url']})")
+            mirrors.append(f"* [Streamable]({sab_mirror_res.json()['url']})")
 
         else:
             print(f"Streamable mirror failed for {post['data']['name']}!")
@@ -379,7 +384,7 @@ def __mirror_for_posts(
             print("Juststreamlive mirror created for " +
                   f"{post['data']['name']}!")
             mirrors.append(
-                f"[JustStreamLive](https://juststream.live/{jsl_mid})",
+                f"* [JustStreamLive](https://juststream.live/{jsl_mid})",
             )
 
         else:
@@ -395,7 +400,7 @@ def __mirror_for_posts(
             sja_mid = sja_mirror_res.json()["url"]
             print(f"Streamja mirror created for {post['data']['name']}!")
             mirrors.append(
-                " | ".join((
+                "* " + " | ".join((
                     f"[Streamja Embed](https://streamja.com/embed{sja_mid})",
                     f"[Streamja Non-Embed](https://streamja.com{sja_mid})",
                 )),
@@ -412,7 +417,7 @@ def __mirror_for_posts(
             mirror_url = "https://streamff.com/v/" + sff_mirror_res.url.split(
                 "https://streamff.com/api/videos/upload/",
             )[1]
-            mirrors.append(f"[Streamff]({mirror_url})")
+            mirrors.append(f"* [Streamff]({mirror_url})")
 
         else:
             print(f"Streamff mirror failed for {post['data']['name']}!")
@@ -450,10 +455,14 @@ def __mirror_for_posts(
 
             reddit.comment(
                 "\n\n".join([
+                    "**Mirrors**",
                     *mirrors,
-                    "*Powered by [eXMB](https://github.com/eXhumer/eXMB)" +
-                    ", contact u/ContentPuff incase of any issues with " +
-                    "the mirrors.*"
+                    "---",
+                    "^(Powered by [eXMB](https://github.com/eXhumer/eXMB)" +
+                    " | [Contact author incase of issue with mirror(s)]" +
+                    "(https://www.reddit.com/message/compose?to=" +
+                    "%2Fu%2FContentPuff&subject=Issue%20with%20" +
+                    f"mirror(s)%20in%20post%20{post['data']['name']}))"
                 ]),
                 parent_id,
             )
