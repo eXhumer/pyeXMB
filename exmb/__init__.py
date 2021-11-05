@@ -161,14 +161,9 @@ def __run_bot(
                 ):
                     highlight_posts.append(post)
 
-            for post in reversed(subreddit_listing_posts):
-                if (
-                    post["data"]["link_flair_text"] in __flairs__
-                    and post["data"]["author"] in __clippers__
-                ):
-                    kwargs.update({
-                        "before": post["data"]["name"],
-                    })
+            kwargs.update({
+                "before": subreddit_listing_posts[0]["data"]["name"],
+            })
 
             res = reddit.get(
                 f"r/{subreddit}/new",
