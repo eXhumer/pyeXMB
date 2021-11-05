@@ -44,6 +44,26 @@ __flairs__ = (
     "Highlight",
     ":post-video: Video",
 )
+__highlight_search_query__ = " AND ".join((
+    f"({query_part})"
+    for query_part
+    in (
+        " OR ".join((
+            f"author:{author}"
+            for author
+            in __clippers__
+        )),
+        " OR ".join((
+            f"flair:{flair}"
+            for flair
+            in (
+                "Video",
+                "Highlight",
+                '":post-video: Video"',
+            )
+        )),
+    )
+))
 
 
 def __bot_clients_setup(auth_alias: str):
@@ -88,13 +108,17 @@ def __run_bot(
 
     if "before" not in kwargs or kwargs["before"] is None:
         print("before not specified! attempting to retrieve latest post name")
-        params = {"show": "all"}
         kwargs["before"] = None
 
-        while kwargs["before"] is None:
-            res = reddit.get(
-                f"r/{subreddit}/new",
-                params=params,
+        if kwargs["before"] is None:
+            res = reddit.search(
+                __highlight_search_query__,
+                sort="new",
+                time_filter="all",
+                restrict_sr=True,
+                subreddit=subreddit,
+                show="all",
+                limit=1,
             )
 
             if not res.ok:
@@ -106,20 +130,9 @@ def __run_bot(
             if res.json()["data"]["dist"] == 0:
                 raise Exception(f"Unable to any valid post in {subreddit}")
 
-            listing_posts = res.json()["data"]["children"]
-
-            for post in listing_posts:
-                if (
-                    post["data"]["link_flair_text"] in __flairs__
-                    and post["data"]["author"] in __clippers__
-                ):
-                    kwargs.update({"before": post["data"]["name"]})
-                    break
-
-            if kwargs["before"] is None:
-                params.update({
-                    "after": listing_posts[-1]["data"]["name"],
-                })
+            kwargs.update({
+                "before": res.json()["data"]["children"][0]["data"]["name"],
+            })
 
         print(f"Latest post name: {kwargs['before']}")
 
