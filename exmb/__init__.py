@@ -111,14 +111,9 @@ def __run_bot(
         kwargs["before"] = None
 
         if kwargs["before"] is None:
-            res = reddit.search(
-                __highlight_search_query__,
-                sort="new",
-                time_filter="all",
-                restrict_sr=True,
-                subreddit=subreddit,
-                show="all",
-                limit=1,
+            res = reddit.get(
+                f"r/{subreddit}/new",
+                params={"limit": 1},
             )
 
             if not res.ok:
