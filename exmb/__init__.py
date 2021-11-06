@@ -180,8 +180,8 @@ def __run_bot(
             streamwo,
         )
 
-        print("Sleeping for 10 seconds!")
-        sleep(10)
+        print("Sleeping for 30 seconds!")
+        sleep(30)
 
 
 def __mirror_for_posts_by_id(
@@ -461,11 +461,11 @@ def __mirror_for_posts(
                     "**Mirrors**",
                     *mirrors,
                     "---",
-                    "^(Powered by [eXMB](https://github.com/eXhumer/eXMB)" +
-                    " | [Contact author incase of issue with mirror(s)]" +
+                    "^Powered ^by ^[eXMB](https://github.com/eXhumer/eXMB)" +
+                    " ^| [^(Contact author incase of issue with mirrors)]" +
                     "(https://www.reddit.com/message/compose?to=" +
                     "%2Fu%2FContentPuff&subject=Issue%20with%20" +
-                    f"mirror(s)%20in%20post%20{post['data']['name']}))"
+                    f"mirrors%20in%20post%20{post['data']['name']})"
                 ]),
                 parent_id,
             )
