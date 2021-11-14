@@ -251,7 +251,7 @@ def __mirror_for_posts(
         if not vid_url.startswith((
             "https://streamable.com/",
             "https://streamja.com/",
-            "https://streamwo.com/",
+            "https://streamwo.com/file/",
             "https://streamff.com/v/",
         )):
             print(
@@ -284,6 +284,9 @@ def __mirror_for_posts(
                 streamja.upload_video(media_data, "Mirror.mp4")
             sff_mirror_res = \
                 streamff.upload_video(media_data, "Mirror.mp4")
+            swo_mirror_res, swo_vid_url = \
+                streamwo.upload_video(media_data, "Mirror.mp4")
+
 
         elif vid_url.startswith("https://streamja.com/"):
             streamja_id = vid_url.split("https://streamja.com/")[1]
@@ -314,9 +317,11 @@ def __mirror_for_posts(
                 streamja.upload_video(media_data, "Mirror.mp4")
             sff_mirror_res = \
                 streamff.upload_video(media_data, "Mirror.mp4")
+            swo_mirror_res, swo_vid_url = \
+                streamwo.upload_video(media_data, "Mirror.mp4")
 
-        elif vid_url.startswith("https://streamwo.com/"):
-            streamwo_id = vid_url.split("https://streamwo.com/")[1]
+        elif vid_url.startswith("https://streamwo.com/file/"):
+            streamwo_id = vid_url.split("https://streamwo.com/file/")[1]
             print(f"Processing {post['data']['name']} with Streamwo " +
                   f"Video {streamwo_id}")
 
@@ -340,6 +345,8 @@ def __mirror_for_posts(
                 streamja.upload_video(media_data, "Mirror.mp4")
             sff_mirror_res = \
                 streamff.upload_video(media_data, "Mirror.mp4")
+            swo_mirror_res, swo_vid_url = \
+                streamwo.upload_video(media_data, "Mirror.mp4")
 
         elif vid_url.startswith("https://streamff.com/v/"):
             streamff_id = vid_url.split("https://streamff.com/v/")[1]
@@ -366,6 +373,8 @@ def __mirror_for_posts(
                 streamja.upload_video(media_data, "Mirror.mp4")
             sff_mirror_res = \
                 streamff.upload_video(media_data, "Mirror.mp4")
+            swo_mirror_res, swo_vid_url = \
+                streamwo.upload_video(media_data, "Mirror.mp4")
 
         mirrors = []
 
@@ -427,6 +436,16 @@ def __mirror_for_posts(
             print(f"|- Status Code: {sff_mirror_res.status_code}")
             print(f"|- Request URL: {sff_mirror_res.url}")
             print(f"|- Response Text: {sff_mirror_res.text}")
+
+        if swo_mirror_res.ok:
+            print(f"Streamwo mirror created for {post['data']['name']}!")
+            mirrors.append(f"* [Streamwo]({swo_vid_url})")
+
+        else:
+            print(f"Streamwo mirror failed for {post['data']['name']}!")
+            print(f"|- Status Code: {swo_mirror_res.status_code}")
+            print(f"|- Request URL: {swo_mirror_res.url}")
+            print(f"|- Response Text: {swo_mirror_res.text}")
 
         if len(mirrors) > 0:
             parent_id = post["data"]["name"]
@@ -573,18 +592,13 @@ def __post_streamwo(
         session=session,
     )
     streamwo = Streamwo(session=session)
-    res = streamwo.upload_from_file(media_path)
+    res, vid_url = streamwo.upload_from_file(media_path)
 
     if not res.ok:
         raise Exception("Invalid response while uploading file to " +
                         "Streamwo!")
 
-    reddit.submit_url(
-        title,
-        f"https://streamwo.com/{res.text}",
-        subreddit=subreddit,
-        flair_id=flair_id,
-    )
+    reddit.submit_url(title, vid_url, subreddit=subreddit, flair_id=flair_id)
 
 
 def __post_streamff(
