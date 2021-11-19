@@ -274,19 +274,18 @@ def __mirror_for_posts(
 
             media_data = BytesIO(vid_res.content)
 
-            sab_mirror_res = streamable.clip_video(
+            sab_mirror_res, sab_vid_url = streamable.clip_video(
                 streamable_id,
                 mirror_title=post["data"]["title"],
             )
-            jsl_mirror_res = \
+            jsl_mirror_res, jsl_vid_url = \
                 juststreamlive.mirror_streamable_video(streamable_id)
-            sja_mirror_res = \
+            sja_mirror_res, sja_embed_url, sja_vid_url = \
                 streamja.upload_video(media_data, "Mirror.mp4")
-            sff_mirror_res = \
+            sff_mirror_res, sff_vid_url = \
                 streamff.upload_video(media_data, "Mirror.mp4")
             swo_mirror_res, swo_vid_url = \
                 streamwo.upload_video(media_data, "Mirror.mp4")
-
 
         elif vid_url.startswith("https://streamja.com/"):
             streamja_id = vid_url.split("https://streamja.com/")[1]
@@ -307,15 +306,15 @@ def __mirror_for_posts(
 
             media_data = BytesIO(vid_res.content)
 
-            sab_mirror_res = streamable.clip_streamja_video(
+            sab_mirror_res, sab_vid_url = streamable.clip_streamja_video(
                 streamja_id,
                 mirror_title=post["data"]["title"],
             )
-            jsl_mirror_res = \
+            jsl_mirror_res, jsl_vid_url = \
                 juststreamlive.mirror_streamja_video(streamja_id)
-            sja_mirror_res = \
+            sja_mirror_res, sja_embed_url, sja_vid_url = \
                 streamja.upload_video(media_data, "Mirror.mp4")
-            sff_mirror_res = \
+            sff_mirror_res, sff_vid_url = \
                 streamff.upload_video(media_data, "Mirror.mp4")
             swo_mirror_res, swo_vid_url = \
                 streamwo.upload_video(media_data, "Mirror.mp4")
@@ -335,15 +334,15 @@ def __mirror_for_posts(
 
             media_data = BytesIO(vid_res.content)
 
-            sab_mirror_res = streamable.clip_streamwo_video(
+            sab_mirror_res, sab_vid_url = streamable.clip_streamwo_video(
                 streamwo_id,
                 mirror_title=post["data"]["title"],
             )
-            jsl_mirror_res = \
+            jsl_mirror_res, jsl_vid_url = \
                 juststreamlive.mirror_streamwo_video(streamwo_id)
-            sja_mirror_res = \
+            sja_mirror_res, sja_embed_url, sja_vid_url = \
                 streamja.upload_video(media_data, "Mirror.mp4")
-            sff_mirror_res = \
+            sff_mirror_res, sff_vid_url = \
                 streamff.upload_video(media_data, "Mirror.mp4")
             swo_mirror_res, swo_vid_url = \
                 streamwo.upload_video(media_data, "Mirror.mp4")
@@ -363,27 +362,24 @@ def __mirror_for_posts(
 
             media_data = BytesIO(vid_res.content)
 
-            sab_mirror_res = streamable.clip_streamff_video(
+            sab_mirror_res, sab_vid_url = streamable.clip_streamff_video(
                 streamff_id,
                 mirror_title=post["data"]["title"],
             )
-            jsl_mirror_res = \
+            jsl_mirror_res, jsl_vid_url = \
                 juststreamlive.upload_video(media_data, "Mirror.mp4")
-            sja_mirror_res = \
+            sja_mirror_res, sja_embed_url, sja_vid_url = \
                 streamja.upload_video(media_data, "Mirror.mp4")
-            sff_mirror_res = \
+            sff_mirror_res, sff_vid_url = \
                 streamff.upload_video(media_data, "Mirror.mp4")
             swo_mirror_res, swo_vid_url = \
                 streamwo.upload_video(media_data, "Mirror.mp4")
 
         mirrors = []
 
-        if (
-            sab_mirror_res.ok
-            and sab_mirror_res.json()["error"] is None
-        ):
+        if sab_vid_url is not None:
             print(f"Streamable mirror created for {post['data']['name']}!")
-            mirrors.append(f"* [Streamable]({sab_mirror_res.json()['url']})")
+            mirrors.append(f"* [Streamable]({sab_vid_url})")
 
         else:
             print(f"Streamable mirror failed for {post['data']['name']}!")
@@ -391,30 +387,23 @@ def __mirror_for_posts(
             print(f"|- Request URL: {sab_mirror_res.url}")
             print(f"|- Response Text: {sab_mirror_res.text}")
 
-        if jsl_mirror_res.ok:
-            jsl_mid = jsl_mirror_res.json()["id"]
-            print("Juststreamlive mirror created for " +
+        if jsl_vid_url is not None:
+            print("JustStreamLive mirror created for " +
                   f"{post['data']['name']}!")
-            mirrors.append(
-                f"* [JustStreamLive](https://juststream.live/{jsl_mid})",
-            )
+            mirrors.append(f"* [JustStreamLive]({jsl_vid_url})")
 
         else:
-            print(f"Juststreamlive mirror failed for {post['data']['name']}!")
+            print(f"JustStreamLive mirror failed for {post['data']['name']}!")
             print(f"|- Status Code: {jsl_mirror_res.status_code}")
             print(f"|- Request URL: {jsl_mirror_res.url}")
             print(f"|- Response Text: {jsl_mirror_res.text}")
 
-        if (
-            sja_mirror_res.ok
-            and sja_mirror_res.json()["status"] == 1
-        ):
-            sja_mid = sja_mirror_res.json()["url"]
+        if sja_embed_url is not None and sja_vid_url is not None:
             print(f"Streamja mirror created for {post['data']['name']}!")
             mirrors.append(
                 "* " + " | ".join((
-                    f"[Streamja Embed](https://streamja.com/embed{sja_mid})",
-                    f"[Streamja Non-Embed](https://streamja.com{sja_mid})",
+                    f"[Streamja Embed]({sja_embed_url})",
+                    f"[Streamja Non-Embed]{sja_vid_url})",
                 )),
             )
 
@@ -424,12 +413,9 @@ def __mirror_for_posts(
             print(f"|- Request URL: {sja_mirror_res.url}")
             print(f"|- Response Text: {sja_mirror_res.text}")
 
-        if sff_mirror_res.ok:
+        if sff_vid_url is not None:
             print(f"Streamff mirror created for {post['data']['name']}!")
-            mirror_url = "https://streamff.com/v/" + sff_mirror_res.url.split(
-                "https://streamff.com/api/videos/upload/",
-            )[1]
-            mirrors.append(f"* [Streamff]({mirror_url})")
+            mirrors.append(f"* [Streamff]({sff_vid_url})")
 
         else:
             print(f"Streamff mirror failed for {post['data']['name']}!")
@@ -507,15 +493,15 @@ def __post_juststreamlive(
         session=session,
     )
     juststreamlive = JustStreamLive(session=session)
-    res = juststreamlive.upload_from_file(media_path)
+    _, vid_url = juststreamlive.upload_from_file(media_path)
 
-    if not res.ok:
+    if vid_url is not None:
         raise Exception("Invalid response while uploading file to " +
                         "JustStreamLive!")
 
     reddit.submit_url(
         title,
-        f"https://juststream.live/{res.json()['id']}",
+        vid_url,
         subreddit=subreddit,
         flair_id=flair_id,
     )
@@ -536,15 +522,15 @@ def __post_streamable(
     )
     streamable = Streamable(session=session)
 
-    res = streamable.upload_from_file(media_path, video_title=title)
+    _, vid_url = streamable.upload_from_file(media_path, video_title=title)
 
-    if not res.ok or res.json()["error"] is not None:
+    if vid_url is not None:
         raise Exception("Invalid response while uploading file to " +
                         "Streamable!")
 
     reddit.submit_url(
         title,
-        res.json()["url"],
+        vid_url,
         subreddit=subreddit,
         flair_id=flair_id,
     )
@@ -564,15 +550,15 @@ def __post_streamja(
         session=session,
     )
     streamja = Streamja(session=session)
-    res = streamja.upload_from_file(media_path)
+    _, _, vid_url = streamja.upload_from_file(media_path)
 
-    if not res.ok or res.json()["status"] == 0:
+    if vid_url is not None:
         raise Exception("Invalid response while uploading file to " +
                         "Streamja!")
 
     reddit.submit_url(
         title,
-        f"https://streamja.com{res.json()['url']}",
+        vid_url,
         subreddit=subreddit,
         flair_id=flair_id,
     )
@@ -615,16 +601,15 @@ def __post_streamff(
         session=session,
     )
     streamff = Streamff(session=session)
-    res = streamff.upload_from_file(media_path)
+    _, vid_url = streamff.upload_from_file(media_path)
 
-    if not res.ok:
+    if vid_url is not None:
         raise Exception("Invalid response while uploading file to " +
                         "Streamff!")
 
-    vid_id = res.url.split('https://streamff.com/api/videos/upload/')[1]
     reddit.submit_url(
         title,
-        f"https://streamff.com/v/{vid_id}",
+        vid_url,
         subreddit=subreddit,
         flair_id=flair_id,
     )
