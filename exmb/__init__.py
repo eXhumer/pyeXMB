@@ -16,6 +16,7 @@
 """Bot module to mirror r/formula1 highlight clips"""
 from __future__ import annotations
 from argparse import ArgumentParser, Namespace
+from collections import deque
 from io import BytesIO
 from pathlib import Path
 from pkg_resources import require
@@ -131,7 +132,64 @@ def __run_bot(
 
         print(f"Latest post name: {kwargs['before']}")
 
+    initial_post_name = kwargs['before']
+    highlight_posts_stack = deque()
+
     while True:
+        print(f"Checking if latest post {kwargs['before']} " +
+              "has been removed/deleted")
+        res = reddit.info(
+            ids=[kwargs["before"]],
+            subreddit=subreddit,
+        )
+
+        if not res.ok:
+            raise ValueError(
+                "Invalid response while trying to check if latest post was " +
+                "deleted/removed!",
+            )
+
+        latest_post = res.json()["data"]["children"][0]
+        post_removal_status = latest_post["data"]["removed_by_category"]
+
+        if post_removal_status is not None:
+            print(f"Post {kwargs['before']} was removed/deleted!")
+            print("Attempting to use last non removed/deleted highlight " +
+                  "post!")
+
+            while True:
+                if len(highlight_posts_stack) != 0:
+                    last_highlights_post_name = highlight_posts_stack.pop()
+                    res = reddit.info(
+                        ids=[last_highlights_post_name],
+                        subreddit=subreddit,
+                    )
+                    if not res.ok:
+                        raise ValueError(
+                            "Invalid response while trying to check if " +
+                            "latest highlight post was deleted/removed!",
+                        )
+
+                    latest_post = res.json()["data"]["children"][0]
+                    post_removal_status = \
+                        latest_post["data"]["removed_by_category"]
+
+                    if post_removal_status is not None:
+                        continue
+
+                    print("Found non removed/deleted mirrored highlight post!")
+                    print(
+                        f"Setting latest post as {last_highlights_post_name}"
+                    )
+                    kwargs['before'] = last_highlights_post_name
+                    break
+
+                else:
+                    print("No previous mirrored highlight post found!")
+                    print(f"Setting latest post as {initial_post_name}")
+                    kwargs['before'] = initial_post_name
+                    break
+
         print(f"Retrieving all posts before post name {kwargs['before']}")
 
         res = reddit.get(
@@ -149,11 +207,12 @@ def __run_bot(
         while res.json()["data"]["dist"] != 0:
             subreddit_listing_posts = res.json()["data"]["children"]
 
-            for post in subreddit_listing_posts:
+            for post in reversed(subreddit_listing_posts):
                 if (
                     post["data"]["link_flair_text"] in __flairs__
                     and post["data"]["author"] in __clippers__
                 ):
+                    highlight_posts_stack.append(post["data"]["name"])
                     highlight_posts.append(post)
 
             kwargs.update({
