@@ -176,6 +176,7 @@ def __run_bot(
                     if post_removal_status is not None:
                         continue
 
+                    highlight_posts_stack.append(last_highlights_post_name)
                     print("Found non removed/deleted mirrored highlight post!")
                     print(
                         f"Setting latest post as {last_highlights_post_name}"
