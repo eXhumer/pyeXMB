@@ -132,7 +132,6 @@ def __run_bot(
 
         print(f"Latest post name: {kwargs['before']}")
 
-    initial_post_name = kwargs['before']
     highlight_posts_stack = deque()
 
     while True:
@@ -186,8 +185,26 @@ def __run_bot(
 
                 else:
                     print("No previous mirrored highlight post found!")
-                    print(f"Setting latest post as {initial_post_name}")
-                    kwargs['before'] = initial_post_name
+                    res = reddit.get(
+                        f"r/{subreddit}/new",
+                        params={"limit": 1},
+                    )
+
+                    if not res.ok:
+                        raise ValueError(
+                            "Invalid response while trying to retrieve " +
+                            "latest post name!",
+                        )
+
+                    if res.json()["data"]["dist"] == 0:
+                        raise Exception("Unable to any valid post in " +
+                                        f"{subreddit}")
+
+                    latest_post_name = \
+                        res.json()["data"]["children"][0]["data"]["name"]
+                    kwargs["before"] = latest_post_name
+
+                    print(f"Setting latest post as {latest_post_name}")
                     break
 
         print(f"Retrieving all posts before post name {kwargs['before']}")
