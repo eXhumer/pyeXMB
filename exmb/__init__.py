@@ -710,7 +710,7 @@ def __parse_args(args: Namespace):
 
         elif args.auth_action == "new":
             if not (__config_path__ / f"{args.alias}.json").is_file():
-                OAuth2Client.localserver_code_flow(
+                client = OAuth2Client.localserver_code_flow(
                     args.client_id,
                     args.client_secret if args.client_secret else "",
                     args.callback_url,
@@ -718,7 +718,9 @@ def __parse_args(args: Namespace):
                     args.scopes.split(" "),
                     state=args.state,
                     user_agent=__user_agent__,
-                ).save_to_file(__config_path__ / f"{args.alias}.json")
+                    token_path=__config_path__ / f"{args.alias}.json",
+                )
+                client.save_to_file()
 
             else:
                 raise FileExistsError(
