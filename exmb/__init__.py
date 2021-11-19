@@ -361,8 +361,8 @@ def __mirror_for_posts(
                 streamja.upload_video(media_data, "Mirror.mp4")
             sff_mirror_res, sff_vid_url = \
                 streamff.upload_video(media_data, "Mirror.mp4")
-            swo_mirror_res, swo_vid_url = \
-                streamwo.upload_video(media_data, "Mirror.mp4")
+            # swo_mirror_res, swo_vid_url = \
+            #     streamwo.upload_video(media_data, "Mirror.mp4")
 
         elif vid_url.startswith("https://streamja.com/"):
             streamja_id = vid_url.split("https://streamja.com/")[1]
@@ -393,8 +393,8 @@ def __mirror_for_posts(
                 streamja.upload_video(media_data, "Mirror.mp4")
             sff_mirror_res, sff_vid_url = \
                 streamff.upload_video(media_data, "Mirror.mp4")
-            swo_mirror_res, swo_vid_url = \
-                streamwo.upload_video(media_data, "Mirror.mp4")
+            # swo_mirror_res, swo_vid_url = \
+            #     streamwo.upload_video(media_data, "Mirror.mp4")
 
         elif vid_url.startswith("https://streamwo.com/file/"):
             streamwo_id = vid_url.split("https://streamwo.com/file/")[1]
@@ -421,8 +421,8 @@ def __mirror_for_posts(
                 streamja.upload_video(media_data, "Mirror.mp4")
             sff_mirror_res, sff_vid_url = \
                 streamff.upload_video(media_data, "Mirror.mp4")
-            swo_mirror_res, swo_vid_url = \
-                streamwo.upload_video(media_data, "Mirror.mp4")
+            # swo_mirror_res, swo_vid_url = \
+            #     streamwo.upload_video(media_data, "Mirror.mp4")
 
         elif vid_url.startswith("https://streamff.com/v/"):
             streamff_id = vid_url.split("https://streamff.com/v/")[1]
@@ -449,8 +449,8 @@ def __mirror_for_posts(
                 streamja.upload_video(media_data, "Mirror.mp4")
             sff_mirror_res, sff_vid_url = \
                 streamff.upload_video(media_data, "Mirror.mp4")
-            swo_mirror_res, swo_vid_url = \
-                streamwo.upload_video(media_data, "Mirror.mp4")
+            # swo_mirror_res, swo_vid_url = \
+            #     streamwo.upload_video(media_data, "Mirror.mp4")
 
         mirrors = []
 
@@ -480,7 +480,7 @@ def __mirror_for_posts(
             mirrors.append(
                 "* " + " | ".join((
                     f"[Streamja Embed]({sja_embed_url})",
-                    f"[Streamja Non-Embed]{sja_vid_url})",
+                    f"[Streamja Non-Embed]({sja_vid_url})",
                 )),
             )
 
@@ -500,15 +500,15 @@ def __mirror_for_posts(
             print(f"|- Request URL: {sff_mirror_res.url}")
             print(f"|- Response Text: {sff_mirror_res.text}")
 
-        if swo_mirror_res.ok:
-            print(f"Streamwo mirror created for {post['data']['name']}!")
-            mirrors.append(f"* [Streamwo]({swo_vid_url})")
+        # if swo_mirror_res.ok:
+        #     print(f"Streamwo mirror created for {post['data']['name']}!")
+        #     mirrors.append(f"* [Streamwo]({swo_vid_url})")
 
-        else:
-            print(f"Streamwo mirror failed for {post['data']['name']}!")
-            print(f"|- Status Code: {swo_mirror_res.status_code}")
-            print(f"|- Request URL: {swo_mirror_res.url}")
-            print(f"|- Response Text: {swo_mirror_res.text}")
+        # else:
+        #     print(f"Streamwo mirror failed for {post['data']['name']}!")
+        #     print(f"|- Status Code: {swo_mirror_res.status_code}")
+        #     print(f"|- Request URL: {swo_mirror_res.url}")
+        #     print(f"|- Response Text: {swo_mirror_res.text}")
 
         if len(mirrors) > 0:
             parent_id = post["data"]["name"]
@@ -572,7 +572,7 @@ def __post_juststreamlive(
     juststreamlive = JustStreamLive(session=session)
     _, vid_url = juststreamlive.upload_from_file(media_path)
 
-    if vid_url is not None:
+    if vid_url is None:
         raise Exception("Invalid response while uploading file to " +
                         "JustStreamLive!")
 
@@ -601,7 +601,7 @@ def __post_streamable(
 
     _, vid_url = streamable.upload_from_file(media_path, video_title=title)
 
-    if vid_url is not None:
+    if vid_url is None:
         raise Exception("Invalid response while uploading file to " +
                         "Streamable!")
 
@@ -629,7 +629,7 @@ def __post_streamja(
     streamja = Streamja(session=session)
     _, _, vid_url = streamja.upload_from_file(media_path)
 
-    if vid_url is not None:
+    if vid_url is None:
         raise Exception("Invalid response while uploading file to " +
                         "Streamja!")
 
@@ -680,7 +680,7 @@ def __post_streamff(
     streamff = Streamff(session=session)
     _, vid_url = streamff.upload_from_file(media_path)
 
-    if vid_url is not None:
+    if vid_url is None:
         raise Exception("Invalid response while uploading file to " +
                         "Streamff!")
 
