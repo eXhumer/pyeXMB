@@ -228,7 +228,7 @@ def __run_bot(
 
             for post in reversed(subreddit_listing_posts):
                 if (
-                    post["data"]["link_flair_text"] in __flairs__
+                    post["data"]["link_flair_text"] in [None, *__flairs__]
                     and post["data"]["author"] in __clippers__
                 ):
                     highlight_posts_stack.append(post["data"]["name"])
