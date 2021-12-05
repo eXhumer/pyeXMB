@@ -498,6 +498,12 @@ def __mirror_for_posts(
                 )),
             )
 
+        elif sja_mirror_res.status_code == 413:
+            print(f"Streamja mirror failed for {post['data']['name']} as it " +
+                  "is too large!")
+            mirrors.append("* Streamja: Failed as video file too large for " +
+                           "host")
+
         else:
             print(f"Streamja mirror failed for {post['data']['name']}!")
             print(f"|- Status Code: {sja_mirror_res.status_code}")
