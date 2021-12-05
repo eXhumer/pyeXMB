@@ -558,8 +558,8 @@ def __mirror_for_posts(
                     "**Mirrors**",
                     *mirrors,
                     "---",
-                    "^Powered ^by ^[eXMB](https://github.com/eXhumer/eXMB)" +
-                    " ^| [^(Contact author incase of issue with mirrors)]" +
+                    "^Powered ^by ^[pyeXMB](https://github.com/eXhumer/pyeXM" +
+                    "B) ^| [^(Contact author incase of issue with mirrors)]" +
                     "(https://www.reddit.com/message/compose?to=" +
                     "%2Fu%2FContentPuff&subject=Issue%20with%20" +
                     f"mirrors%20in%20post%20{post['data']['name']})"
