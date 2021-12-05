@@ -88,6 +88,7 @@ def __bot_clients_setup(auth_alias: str):
 def __run_bot(
     auth_alias: str,
     subreddit: str | None = None,
+    streamwo_mirror: bool = False,
     **listing_kwargs: str | int,
 ):
     if subreddit is None:
@@ -256,6 +257,7 @@ def __run_bot(
             juststreamlive,
             streamff,
             streamwo,
+            streamwo_mirror=streamwo_mirror,
         )
 
         print("Sleeping for 30 seconds!")
@@ -266,6 +268,7 @@ def __mirror_for_posts_by_id(
     auth_alias: str,
     post_ids: List[str],
     subreddit: str | None = None,
+    streamwo_mirror: bool = False,
 ):
     (
         reddit,
@@ -306,6 +309,7 @@ def __mirror_for_posts_by_id(
         juststreamlive,
         streamff,
         streamwo,
+        streamwo_mirror=streamwo_mirror,
     )
 
 
@@ -317,6 +321,7 @@ def __mirror_for_posts(
     juststreamlive: JustStreamLive,
     streamff: Streamff,
     streamwo: Streamwo,
+    streamwo_mirror: bool = False,
 ):
     for post in highlight_posts:
         vid_url: str = post["data"]["url"]
@@ -362,8 +367,10 @@ def __mirror_for_posts(
                 streamja.upload_video(media_data, "Mirror.mp4")
             sff_mirror_res, sff_vid_url = \
                 streamff.upload_video(media_data, "Mirror.mp4")
-            # swo_mirror_res, swo_vid_url = \
-            #     streamwo.upload_video(media_data, "Mirror.mp4")
+
+            if streamwo_mirror:
+                swo_mirror_res, swo_vid_url = \
+                    streamwo.upload_video(media_data, "Mirror.mp4")
 
         elif vid_url.startswith("https://streamja.com/"):
             streamja_id = vid_url.split("https://streamja.com/")[1]
@@ -394,8 +401,10 @@ def __mirror_for_posts(
                 streamja.upload_video(media_data, "Mirror.mp4")
             sff_mirror_res, sff_vid_url = \
                 streamff.upload_video(media_data, "Mirror.mp4")
-            # swo_mirror_res, swo_vid_url = \
-            #     streamwo.upload_video(media_data, "Mirror.mp4")
+
+            if streamwo_mirror:
+                swo_mirror_res, swo_vid_url = \
+                    streamwo.upload_video(media_data, "Mirror.mp4")
 
         elif vid_url.startswith("https://streamwo.com/file/"):
             streamwo_id = vid_url.split("https://streamwo.com/file/")[1]
@@ -422,8 +431,10 @@ def __mirror_for_posts(
                 streamja.upload_video(media_data, "Mirror.mp4")
             sff_mirror_res, sff_vid_url = \
                 streamff.upload_video(media_data, "Mirror.mp4")
-            # swo_mirror_res, swo_vid_url = \
-            #     streamwo.upload_video(media_data, "Mirror.mp4")
+
+            if streamwo_mirror:
+                swo_mirror_res, swo_vid_url = \
+                    streamwo.upload_video(media_data, "Mirror.mp4")
 
         elif vid_url.startswith("https://streamff.com/v/"):
             streamff_id = vid_url.split("https://streamff.com/v/")[1]
@@ -450,8 +461,10 @@ def __mirror_for_posts(
                 streamja.upload_video(media_data, "Mirror.mp4")
             sff_mirror_res, sff_vid_url = \
                 streamff.upload_video(media_data, "Mirror.mp4")
-            # swo_mirror_res, swo_vid_url = \
-            #     streamwo.upload_video(media_data, "Mirror.mp4")
+
+            if streamwo_mirror:
+                swo_mirror_res, swo_vid_url = \
+                    streamwo.upload_video(media_data, "Mirror.mp4")
 
         mirrors = []
 
@@ -501,15 +514,16 @@ def __mirror_for_posts(
             print(f"|- Request URL: {sff_mirror_res.url}")
             print(f"|- Response Text: {sff_mirror_res.text}")
 
-        # if swo_mirror_res.ok:
-        #     print(f"Streamwo mirror created for {post['data']['name']}!")
-        #     mirrors.append(f"* [Streamwo]({swo_vid_url})")
+        if streamwo_mirror:
+            if swo_mirror_res.ok:
+                print(f"Streamwo mirror created for {post['data']['name']}!")
+                mirrors.append(f"* [Streamwo]({swo_vid_url})")
 
-        # else:
-        #     print(f"Streamwo mirror failed for {post['data']['name']}!")
-        #     print(f"|- Status Code: {swo_mirror_res.status_code}")
-        #     print(f"|- Request URL: {swo_mirror_res.url}")
-        #     print(f"|- Response Text: {swo_mirror_res.text}")
+            else:
+                print(f"Streamwo mirror failed for {post['data']['name']}!")
+                print(f"|- Status Code: {swo_mirror_res.status_code}")
+                print(f"|- Request URL: {swo_mirror_res.url}")
+                print(f"|- Response Text: {swo_mirror_res.text}")
 
         if len(mirrors) > 0:
             parent_id = post["data"]["name"]
@@ -750,6 +764,7 @@ def __parse_args(args: Namespace):
                 before=args.before,
                 limit=args.limit,
                 subreddit=args.subreddit,
+                streamwo_mirror=args.streamwo_mirror,
             )
 
         else:
@@ -763,6 +778,7 @@ def __parse_args(args: Namespace):
                 args.alias,
                 args.post_ids,
                 subreddit=args.subreddit,
+                streamwo_mirror=args.streamwo_mirror,
             )
 
         else:
@@ -872,10 +888,14 @@ def console_main():
     run_parser.add_argument("--before")
     run_parser.add_argument("--limit", type=int)
     run_parser.add_argument("--subreddit")
+    run_parser.add_argument("--streamwo-mirror", action="store_true")
     mirror_for_post_parser = subparsers.add_parser("mirror-for-post")
     mirror_for_post_parser.add_argument("alias")
     mirror_for_post_parser.add_argument(
         "post_ids", metavar="post_id", nargs="+",
+    )
+    mirror_for_post_parser.add_argument(
+        "--streamwo-mirror", action="store_true",
     )
     mirror_for_post_parser.add_argument("--subreddit")
     post_juststreamlive_parser = subparsers.add_parser("post-juststreamlive")
