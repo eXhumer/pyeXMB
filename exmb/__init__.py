@@ -21,7 +21,7 @@ from datetime import datetime, timezone
 from io import BytesIO
 from pathlib import Path
 from pkg_resources import require
-from queue import Empty, Queue
+from queue import Queue
 from time import sleep
 from typing import Any, Dict, List
 
@@ -293,354 +293,351 @@ def __mirror_for_posts(
     streamwo: Streamwo,
     streamwo_mirror: bool = False,
 ):
-    max_attempts = 5
+    max_attempts = 10
     post_queue = Queue()
 
     for post in highlight_posts:
         post_queue.put({"post": post, "attempts": 0, "last_attempt": None})
 
-    try:
-        while post_data := post_queue.get():
-            post = post_data["post"]
-            vid_url: str = post["data"]["url"]
+    while not post_queue.empty():
+        post_data = post_queue.get()
+        post = post_data["post"]
+        vid_url: str = post["data"]["url"]
 
-            sab_mirror_res = None
-            sja_mirror_res = None
-            jsl_mirror_res = None
-            sff_mirror_res = None
+        sab_mirror_res = None
+        sja_mirror_res = None
+        jsl_mirror_res = None
+        sff_mirror_res = None
 
-            if not vid_url.startswith((
-                "https://streamable.com/",
-                "https://streamja.com/",
-                "https://streamwo.com/file/",
-                "https://streamff.com/v/",
-            )):
-                print(
-                    f"Post {post['data']['name']} with unsupported video host!"
-                )
+        if not vid_url.startswith((
+            "https://streamable.com/",
+            "https://streamja.com/",
+            "https://streamwo.com/file/",
+            "https://streamff.com/v/",
+        )):
+            print(
+                f"Post {post['data']['name']} with unsupported video host!"
+            )
+            continue
+
+        if vid_url.startswith("https://streamable.com/"):
+            streamable_id = vid_url.split("https://streamable.com/")[1]
+            print(f"Processing {post['data']['name']} with Streamable " +
+                  f"Video {streamable_id}")
+
+            if not streamable.is_video_available(streamable_id):
+                print("Unable to get direct video link from Streamable " +
+                      f"video ID {streamable_id}. Video not available / " +
+                      "taken down!")
                 continue
 
-            if vid_url.startswith("https://streamable.com/"):
-                streamable_id = vid_url.split("https://streamable.com/")[1]
-                print(f"Processing {post['data']['name']} with Streamable " +
-                      f"Video {streamable_id}")
-
-                if not streamable.is_video_available(streamable_id):
-                    print("Unable to get direct video link from Streamable " +
-                          f"video ID {streamable_id}. Video not available / " +
-                          "taken down!")
+            if post_data["attempts"] < max_attempts:
+                last_attempt: datetime
+                if (
+                    last_attempt := post_data["last_attempt"]
+                ) is not None and (
+                    datetime.now(tz=timezone.utc) - last_attempt
+                ).seconds < 5:
+                    print(f"Attempting Streamable Video {streamable_id} " +
+                          "mirror too quickly since last try! Must wait " +
+                          "5 seconds between each attempt!")
+                    post_queue.put(post_data)
                     continue
 
-                if post_data["attempts"] < max_attempts:
-                    last_attempt: datetime
-                    if (
-                        last_attempt := post_data["last_attempt"]
-                    ) is not None and (
-                        datetime.now(tz=timezone.utc) - last_attempt
-                    ).seconds < 5:
-                        print(f"Attempting Streamable Video {streamable_id} " +
-                              "mirror too quickly since last try! Must wait " +
-                              "5 seconds between each attempt!")
-                        post_queue.put(post_data)
-                        continue
-
-                    if streamable.is_video_processing(streamable_id):
-                        post_data["last_attempt"] = \
-                            datetime.now(tz=timezone.utc)
-                        print(f"Streamable Video {streamable_id} still " +
-                              "being processed, trying later!")
-                        post_data["attempts"] += 1
-                        post_queue.put(post_data)
-                        continue
-
-                else:
+                if streamable.is_video_processing(streamable_id):
+                    post_data["last_attempt"] = \
+                        datetime.now(tz=timezone.utc)
                     print(f"Streamable Video {streamable_id} still " +
-                          "being processed! Max attempts reached, " +
-                          "ignoring video!")
+                          "being processed, trying later!")
+                    post_data["attempts"] += 1
+                    post_queue.put(post_data)
                     continue
-
-                vid_res = streamable.get_video(streamable_id)
-                media_data = BytesIO(vid_res.content)
-
-                sab_mirror_res, sab_vid_url = streamable.clip_video(
-                    streamable_id,
-                    mirror_title=post["data"]["title"],
-                )
-                jsl_mirror_res, jsl_vid_url = \
-                    juststreamlive.mirror_streamable_video(streamable_id)
-                sja_mirror_res, sja_embed_url, sja_vid_url = \
-                    streamja.upload_video(media_data, "Mirror.mp4")
-                sff_mirror_res, sff_vid_url = \
-                    streamff.upload_video(media_data, "Mirror.mp4")
-
-                if streamwo_mirror:
-                    swo_mirror_res, swo_vid_url = \
-                        streamwo.upload_video(media_data, "Mirror.mp4")
-
-            elif vid_url.startswith("https://streamja.com/"):
-                streamja_id = vid_url.split("https://streamja.com/")[1]
-
-                if streamja_id.startswith("embed/"):
-                    streamja_id = vid_url.split("embed/")[1]
-
-                print(f"Processing {post['data']['name']} with Streamja " +
-                      f"Video {streamja_id}")
-
-                if not streamja.is_video_available(streamja_id):
-                    print("Unable to get direct video link from Streamja " +
-                          f"video ID {streamja_id}. Video not available / " +
-                          "taken down!")
-                    continue
-
-                if post_data["attempts"] < max_attempts:
-                    last_attempt: datetime
-                    if (
-                        last_attempt := post_data["last_attempt"]
-                    ) is not None and (
-                        datetime.now(tz=timezone.utc) - last_attempt
-                    ).seconds < 5:
-                        print(f"Attempting Streamja Video {streamja_id} " +
-                              "mirror too quickly since last try! Must wait " +
-                              "5 seconds between each attempt!")
-                        post_queue.put(post_data)
-                        continue
-
-                    if streamja.is_video_processing(streamja_id):
-                        post_data["last_attempt"] = \
-                            datetime.now(tz=timezone.utc)
-                        print(f"Streamja Video {streamja_id} still " +
-                              "being processed, trying later!")
-                        post_data["attempts"] += 1
-                        post_queue.put(post_data)
-                        continue
-
-                else:
-                    print(f"Streamja Video {streamja_id} still " +
-                          "being processed! Max attempts reached, " +
-                          "ignoring video!")
-                    continue
-
-                vid_res = streamja.get_video(streamja_id)
-                media_data = BytesIO(vid_res.content)
-
-                sab_mirror_res, sab_vid_url = streamable.clip_streamja_video(
-                    streamja_id,
-                    mirror_title=post["data"]["title"],
-                )
-                jsl_mirror_res, jsl_vid_url = \
-                    juststreamlive.mirror_streamja_video(streamja_id)
-                sja_mirror_res, sja_embed_url, sja_vid_url = \
-                    streamja.upload_video(media_data, "Mirror.mp4")
-                sff_mirror_res, sff_vid_url = \
-                    streamff.upload_video(media_data, "Mirror.mp4")
-
-                if streamwo_mirror:
-                    swo_mirror_res, swo_vid_url = \
-                        streamwo.upload_video(media_data, "Mirror.mp4")
-
-            elif vid_url.startswith("https://streamwo.com/file/"):
-                streamwo_id = vid_url.split("https://streamwo.com/file/")[1]
-                print(f"Processing {post['data']['name']} with Streamwo " +
-                      f"Video {streamwo_id}")
-
-                if not streamwo.is_video_available(streamwo_id):
-                    print("Unable to get direct video link from Streamwo " +
-                          f"video ID {streamwo_id}. Video not available / " +
-                          "taken down!")
-                    continue
-
-                if post_data["attempts"] < max_attempts:
-                    last_attempt: datetime
-                    if (
-                        last_attempt := post_data["last_attempt"]
-                    ) is not None and (
-                        datetime.now(tz=timezone.utc) - last_attempt
-                    ).seconds < 5:
-                        print(f"Attempting Streamwo Video {streamwo_id} " +
-                              "mirror too quickly since last try! Must wait " +
-                              "5 seconds between each attempt!")
-                        post_queue.put(post_data)
-                        continue
-
-                    if streamwo.is_video_processing(streamwo_id):
-                        post_data["last_attempt"] = \
-                            datetime.now(tz=timezone.utc)
-                        print(f"Streamwo Video {streamwo_id} still " +
-                              "being processed, trying later!")
-                        post_data["attempts"] += 1
-                        post_queue.put(post_data)
-                        continue
-
-                else:
-                    print(f"Streamwo Video {streamwo_id} still " +
-                          "being processed! Max attempts reached, " +
-                          "ignoring video!")
-                    continue
-
-                vid_res = streamwo.get_video(streamwo_id)
-                media_data = BytesIO(vid_res.content)
-
-                sab_mirror_res, sab_vid_url = streamable.clip_streamwo_video(
-                    streamwo_id,
-                    mirror_title=post["data"]["title"],
-                )
-                jsl_mirror_res, jsl_vid_url = \
-                    juststreamlive.mirror_streamwo_video(streamwo_id)
-                sja_mirror_res, sja_embed_url, sja_vid_url = \
-                    streamja.upload_video(media_data, "Mirror.mp4")
-                sff_mirror_res, sff_vid_url = \
-                    streamff.upload_video(media_data, "Mirror.mp4")
-
-                if streamwo_mirror:
-                    swo_mirror_res, swo_vid_url = \
-                        streamwo.upload_video(media_data, "Mirror.mp4")
-
-            elif vid_url.startswith("https://streamff.com/v/"):
-                streamff_id = vid_url.split("https://streamff.com/v/")[1]
-                print(f"Processing {post['data']['name']} with Streamff " +
-                      f"Video {streamff_id}")
-
-                vid_res = streamff.get_video(streamff_id)
-
-                if not vid_res.ok:
-                    print("Unable to get direct video link from Streamff " +
-                          f"video ID {streamff_id}. Video not available / " +
-                          "taken down!")
-                    continue
-
-                media_data = BytesIO(vid_res.content)
-
-                sab_mirror_res, sab_vid_url = streamable.clip_streamff_video(
-                    streamff_id,
-                    mirror_title=post["data"]["title"],
-                )
-                jsl_mirror_res, jsl_vid_url = \
-                    juststreamlive.upload_video(media_data, "Mirror.mp4")
-                sja_mirror_res, sja_embed_url, sja_vid_url = \
-                    streamja.upload_video(media_data, "Mirror.mp4")
-                sff_mirror_res, sff_vid_url = \
-                    streamff.upload_video(media_data, "Mirror.mp4")
-
-                if streamwo_mirror:
-                    swo_mirror_res, swo_vid_url = \
-                        streamwo.upload_video(media_data, "Mirror.mp4")
-
-            mirrors = []
-
-            if sab_vid_url is not None:
-                print(f"Streamable mirror created for {post['data']['name']}!")
-                mirrors.append(f"* [Streamable]({sab_vid_url})")
 
             else:
-                print(f"Streamable mirror failed for {post['data']['name']}!")
-                print(f"|- Status Code: {sab_mirror_res.status_code}")
-                print(f"|- Request URL: {sab_mirror_res.url}")
-                print(f"|- Response Text: {sab_mirror_res.text}")
+                print(f"Streamable Video {streamable_id} still " +
+                      "being processed! Max attempts reached, " +
+                      "ignoring video!")
+                continue
 
-            if jsl_vid_url is not None:
-                print("JustStreamLive mirror created for " +
-                      f"{post['data']['name']}!")
-                mirrors.append(f"* [JustStreamLive]({jsl_vid_url})")
+            vid_res = streamable.get_video(streamable_id)
+            media_data = BytesIO(vid_res.content)
 
-            else:
-                print("JustStreamLive mirror failed for " +
-                      f"{post['data']['name']}!")
-                print(f"|- Status Code: {jsl_mirror_res.status_code}")
-                print(f"|- Request URL: {jsl_mirror_res.url}")
-                print(f"|- Response Text: {jsl_mirror_res.text}")
-
-            if sja_embed_url is not None and sja_vid_url is not None:
-                print(f"Streamja mirror created for {post['data']['name']}!")
-                mirrors.append(
-                    "* " + " | ".join((
-                        f"[Streamja Embed]({sja_embed_url})",
-                        f"[Streamja Non-Embed]({sja_vid_url})",
-                    )),
-                )
-
-            elif sja_mirror_res.status_code == 413:
-                print(f"Streamja mirror failed for {post['data']['name']} " +
-                      "as it is too large!")
-                mirrors.append("* Streamja: Failed as video file too large " +
-                               "for host")
-
-            else:
-                print(f"Streamja mirror failed for {post['data']['name']}!")
-                print(f"|- Status Code: {sja_mirror_res.status_code}")
-                print(f"|- Request URL: {sja_mirror_res.url}")
-                print(f"|- Response Text: {sja_mirror_res.text}")
-
-            if sff_vid_url is not None:
-                print(f"Streamff mirror created for {post['data']['name']}!")
-                mirrors.append(f"* [Streamff]({sff_vid_url})")
-
-            else:
-                print(f"Streamff mirror failed for {post['data']['name']}!")
-                print(f"|- Status Code: {sff_mirror_res.status_code}")
-                print(f"|- Request URL: {sff_mirror_res.url}")
-                print(f"|- Response Text: {sff_mirror_res.text}")
+            sab_mirror_res, sab_vid_url = streamable.clip_video(
+                streamable_id,
+                mirror_title=post["data"]["title"],
+            )
+            jsl_mirror_res, jsl_vid_url = \
+                juststreamlive.mirror_streamable_video(streamable_id)
+            sja_mirror_res, sja_embed_url, sja_vid_url = \
+                streamja.upload_video(media_data, "Mirror.mp4")
+            sff_mirror_res, sff_vid_url = \
+                streamff.upload_video(media_data, "Mirror.mp4")
 
             if streamwo_mirror:
-                if swo_mirror_res.ok:
-                    print("Streamwo mirror created for " +
-                          f"{post['data']['name']}!")
-                    mirrors.append(f"* [Streamwo]({swo_vid_url})")
+                swo_mirror_res, swo_vid_url = \
+                    streamwo.upload_video(media_data, "Mirror.mp4")
 
-                else:
-                    print("Streamwo mirror failed for " +
-                          f"{post['data']['name']}!")
-                    print(f"|- Status Code: {swo_mirror_res.status_code}")
-                    print(f"|- Request URL: {swo_mirror_res.url}")
-                    print(f"|- Response Text: {swo_mirror_res.text}")
+        elif vid_url.startswith("https://streamja.com/"):
+            streamja_id = vid_url.split("https://streamja.com/")[1]
 
-            if len(mirrors) > 0:
-                parent_id = post["data"]["name"]
+            if streamja_id.startswith("embed/"):
+                streamja_id = vid_url.split("embed/")[1]
 
-                res = reddit.comments(
-                    post["data"]["id"],
-                    subreddit=post["data"]["subreddit"],
-                    limit=1,
-                )
+            print(f"Processing {post['data']['name']} with Streamja " +
+                  f"Video {streamja_id}")
 
-                if not res.ok:
-                    print("Invalid response while trying to retrieve " +
-                          "comments listing!")
+            if not streamja.is_video_available(streamja_id):
+                print("Unable to get direct video link from Streamja " +
+                      f"video ID {streamja_id}. Video not available / " +
+                      "taken down!")
+                continue
 
-                elif (
-                    len(res.json()) == 2
-                    and len(res.json()[1]["data"]["children"]) > 0
-                ):
-                    post_first_comment = res.json()[1]["data"]["children"][0]
+            if post_data["attempts"] < max_attempts:
+                last_attempt: datetime
+                if (
+                    last_attempt := post_data["last_attempt"]
+                ) is not None and (
+                    datetime.now(tz=timezone.utc) - last_attempt
+                ).seconds < 5:
+                    print(f"Attempting Streamja Video {streamja_id} " +
+                          "mirror too quickly since last try! Must wait " +
+                          "5 seconds between each attempt!")
+                    post_queue.put(post_data)
+                    continue
 
-                    if post_first_comment["data"]["stickied"] is True:
-                        parent_id = post_first_comment["data"]["name"]
-
-                    else:
-                        print(f"No sticked comment under post {parent_id}")
-
-                else:
-                    print(f"No comments under post {parent_id}")
-
-                reddit.comment(
-                    "\n\n".join([
-                        "**Mirrors**",
-                        *mirrors,
-                        "---",
-                        "^Powered ^by ^[pyeXMB](https://github.com/eXhumer/" +
-                        "pyeXMB) ^| [^(Contact author incase of issue with " +
-                        "mirrors)](https://www.reddit.com/message/compose?" +
-                        "to=%2Fu%2FContentPuff&subject=Issue%20with%20" +
-                        f"mirrors%20in%20post%20{post['data']['name']})"
-                    ]),
-                    parent_id,
-                )
+                if streamja.is_video_processing(streamja_id):
+                    post_data["last_attempt"] = \
+                        datetime.now(tz=timezone.utc)
+                    print(f"Streamja Video {streamja_id} still " +
+                          "being processed, trying later!")
+                    post_data["attempts"] += 1
+                    post_queue.put(post_data)
+                    continue
 
             else:
-                print("Failed to create any mirror for " +
-                      f"{post['data']['name']}")
+                print(f"Streamja Video {streamja_id} still " +
+                      "being processed! Max attempts reached, " +
+                      "ignoring video!")
+                continue
 
-    except Empty:
-        pass
+            vid_res = streamja.get_video(streamja_id)
+            media_data = BytesIO(vid_res.content)
+
+            sab_mirror_res, sab_vid_url = streamable.clip_streamja_video(
+                streamja_id,
+                mirror_title=post["data"]["title"],
+            )
+            jsl_mirror_res, jsl_vid_url = \
+                juststreamlive.mirror_streamja_video(streamja_id)
+            sja_mirror_res, sja_embed_url, sja_vid_url = \
+                streamja.upload_video(media_data, "Mirror.mp4")
+            sff_mirror_res, sff_vid_url = \
+                streamff.upload_video(media_data, "Mirror.mp4")
+
+            if streamwo_mirror:
+                swo_mirror_res, swo_vid_url = \
+                    streamwo.upload_video(media_data, "Mirror.mp4")
+
+        elif vid_url.startswith("https://streamwo.com/file/"):
+            streamwo_id = vid_url.split("https://streamwo.com/file/")[1]
+            print(f"Processing {post['data']['name']} with Streamwo " +
+                  f"Video {streamwo_id}")
+
+            if not streamwo.is_video_available(streamwo_id):
+                print("Unable to get direct video link from Streamwo " +
+                      f"video ID {streamwo_id}. Video not available / " +
+                      "taken down!")
+                continue
+
+            if post_data["attempts"] < max_attempts:
+                last_attempt: datetime
+                if (
+                    last_attempt := post_data["last_attempt"]
+                ) is not None and (
+                    datetime.now(tz=timezone.utc) - last_attempt
+                ).seconds < 5:
+                    print(f"Attempting Streamwo Video {streamwo_id} " +
+                          "mirror too quickly since last try! Must wait " +
+                          "5 seconds between each attempt!")
+                    post_queue.put(post_data)
+                    continue
+
+                if streamwo.is_video_processing(streamwo_id):
+                    post_data["last_attempt"] = \
+                        datetime.now(tz=timezone.utc)
+                    print(f"Streamwo Video {streamwo_id} still " +
+                          "being processed, trying later!")
+                    post_data["attempts"] += 1
+                    post_queue.put(post_data)
+                    continue
+
+            else:
+                print(f"Streamwo Video {streamwo_id} still " +
+                      "being processed! Max attempts reached, " +
+                      "ignoring video!")
+                continue
+
+            vid_res = streamwo.get_video(streamwo_id)
+            media_data = BytesIO(vid_res.content)
+
+            sab_mirror_res, sab_vid_url = streamable.clip_streamwo_video(
+                streamwo_id,
+                mirror_title=post["data"]["title"],
+            )
+            jsl_mirror_res, jsl_vid_url = \
+                juststreamlive.mirror_streamwo_video(streamwo_id)
+            sja_mirror_res, sja_embed_url, sja_vid_url = \
+                streamja.upload_video(media_data, "Mirror.mp4")
+            sff_mirror_res, sff_vid_url = \
+                streamff.upload_video(media_data, "Mirror.mp4")
+
+            if streamwo_mirror:
+                swo_mirror_res, swo_vid_url = \
+                    streamwo.upload_video(media_data, "Mirror.mp4")
+
+        elif vid_url.startswith("https://streamff.com/v/"):
+            streamff_id = vid_url.split("https://streamff.com/v/")[1]
+            print(f"Processing {post['data']['name']} with Streamff " +
+                  f"Video {streamff_id}")
+
+            vid_res = streamff.get_video(streamff_id)
+
+            if not vid_res.ok:
+                print("Unable to get direct video link from Streamff " +
+                      f"video ID {streamff_id}. Video not available / " +
+                      "taken down!")
+                continue
+
+            media_data = BytesIO(vid_res.content)
+
+            sab_mirror_res, sab_vid_url = streamable.clip_streamff_video(
+                streamff_id,
+                mirror_title=post["data"]["title"],
+            )
+            jsl_mirror_res, jsl_vid_url = \
+                juststreamlive.upload_video(media_data, "Mirror.mp4")
+            sja_mirror_res, sja_embed_url, sja_vid_url = \
+                streamja.upload_video(media_data, "Mirror.mp4")
+            sff_mirror_res, sff_vid_url = \
+                streamff.upload_video(media_data, "Mirror.mp4")
+
+            if streamwo_mirror:
+                swo_mirror_res, swo_vid_url = \
+                    streamwo.upload_video(media_data, "Mirror.mp4")
+
+        mirrors = []
+
+        if sab_vid_url is not None:
+            print(f"Streamable mirror created for {post['data']['name']}!")
+            mirrors.append(f"* [Streamable]({sab_vid_url})")
+
+        else:
+            print(f"Streamable mirror failed for {post['data']['name']}!")
+            print(f"|- Status Code: {sab_mirror_res.status_code}")
+            print(f"|- Request URL: {sab_mirror_res.url}")
+            print(f"|- Response Text: {sab_mirror_res.text}")
+
+        if jsl_vid_url is not None:
+            print("JustStreamLive mirror created for " +
+                  f"{post['data']['name']}!")
+            mirrors.append(f"* [JustStreamLive]({jsl_vid_url})")
+
+        else:
+            print("JustStreamLive mirror failed for " +
+                  f"{post['data']['name']}!")
+            print(f"|- Status Code: {jsl_mirror_res.status_code}")
+            print(f"|- Request URL: {jsl_mirror_res.url}")
+            print(f"|- Response Text: {jsl_mirror_res.text}")
+
+        if sja_embed_url is not None and sja_vid_url is not None:
+            print(f"Streamja mirror created for {post['data']['name']}!")
+            mirrors.append(
+                "* " + " | ".join((
+                    f"[Streamja Embed]({sja_embed_url})",
+                    f"[Streamja Non-Embed]({sja_vid_url})",
+                )),
+            )
+
+        elif sja_mirror_res.status_code == 413:
+            print(f"Streamja mirror failed for {post['data']['name']} " +
+                  "as it is too large!")
+            mirrors.append("* Streamja: Failed as video file too large " +
+                           "for host")
+
+        else:
+            print(f"Streamja mirror failed for {post['data']['name']}!")
+            print(f"|- Status Code: {sja_mirror_res.status_code}")
+            print(f"|- Request URL: {sja_mirror_res.url}")
+            print(f"|- Response Text: {sja_mirror_res.text}")
+
+        if sff_vid_url is not None:
+            print(f"Streamff mirror created for {post['data']['name']}!")
+            mirrors.append(f"* [Streamff]({sff_vid_url})")
+
+        else:
+            print(f"Streamff mirror failed for {post['data']['name']}!")
+            print(f"|- Status Code: {sff_mirror_res.status_code}")
+            print(f"|- Request URL: {sff_mirror_res.url}")
+            print(f"|- Response Text: {sff_mirror_res.text}")
+
+        if streamwo_mirror:
+            if swo_mirror_res.ok:
+                print("Streamwo mirror created for " +
+                      f"{post['data']['name']}!")
+                mirrors.append(f"* [Streamwo]({swo_vid_url})")
+
+            else:
+                print("Streamwo mirror failed for " +
+                      f"{post['data']['name']}!")
+                print(f"|- Status Code: {swo_mirror_res.status_code}")
+                print(f"|- Request URL: {swo_mirror_res.url}")
+                print(f"|- Response Text: {swo_mirror_res.text}")
+
+        if len(mirrors) > 0:
+            parent_id = post["data"]["name"]
+
+            res = reddit.comments(
+                post["data"]["id"],
+                subreddit=post["data"]["subreddit"],
+                limit=1,
+            )
+
+            if not res.ok:
+                print("Invalid response while trying to retrieve " +
+                      "comments listing!")
+
+            elif (
+                len(res.json()) == 2
+                and len(res.json()[1]["data"]["children"]) > 0
+            ):
+                post_first_comment = res.json()[1]["data"]["children"][0]
+
+                if post_first_comment["data"]["stickied"] is True:
+                    parent_id = post_first_comment["data"]["name"]
+
+                else:
+                    print(f"No sticked comment under post {parent_id}")
+
+            else:
+                print(f"No comments under post {parent_id}")
+
+            reddit.comment(
+                "\n\n".join([
+                    "**Mirrors**",
+                    *mirrors,
+                    "---",
+                    "^Powered ^by ^[pyeXMB](https://github.com/eXhumer/" +
+                    "pyeXMB) ^| [^(Contact author incase of issue with " +
+                    "mirrors)](https://www.reddit.com/message/compose?" +
+                    "to=%2Fu%2FContentPuff&subject=Issue%20with%20" +
+                    f"mirrors%20in%20post%20{post['data']['name']})"
+                ]),
+                parent_id,
+            )
+
+        else:
+            print("Failed to create any mirror for " +
+                  f"{post['data']['name']}")
 
 
 def __post_juststreamlive(
