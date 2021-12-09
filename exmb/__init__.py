@@ -62,7 +62,7 @@ class BotClient:
             listing_kwargs["before"] = None
 
             if listing_kwargs["before"] is None:
-                res = self.reddit.get(
+                res = self.__reddit.get(
                     f"r/{subreddit}/new",
                     params={"limit": 1},
                 )
@@ -88,7 +88,7 @@ class BotClient:
         while True:
             print(f"Checking if latest post {listing_kwargs['before']} " +
                   "has been removed/deleted")
-            res = self.reddit.info(
+            res = self.__reddit.info(
                 ids=[listing_kwargs["before"]],
                 subreddit=subreddit,
             )
@@ -110,7 +110,7 @@ class BotClient:
                 while True:
                     if len(highlight_posts_stack) != 0:
                         last_highlights_post_name = highlight_posts_stack.pop()
-                        res = self.reddit.info(
+                        res = self.__reddit.info(
                             ids=[last_highlights_post_name],
                             subreddit=subreddit,
                         )
@@ -137,7 +137,7 @@ class BotClient:
 
                     else:
                         print("No previous mirrored highlight post found!")
-                        res = self.reddit.get(
+                        res = self.__reddit.get(
                             f"r/{subreddit}/new",
                             params={"limit": 1},
                         )
@@ -162,7 +162,7 @@ class BotClient:
             print("Retrieving all posts before post name " +
                   listing_kwargs["before"])
 
-            res = self.reddit.get(
+            res = self.__reddit.get(
                 f"r/{subreddit}/new",
                 params=listing_kwargs,
             )
@@ -191,7 +191,7 @@ class BotClient:
                     "before": subreddit_listing_posts[0]["data"]["name"],
                 })
 
-                res = self.reddit.get(
+                res = self.__reddit.get(
                     f"r/{subreddit}/new",
                     params=listing_kwargs,
                 )
@@ -540,7 +540,7 @@ class BotClient:
             if len(mirrors) > 0:
                 parent_id = post["data"]["name"]
 
-                res = self.reddit.comments(
+                res = self.__reddit.comments(
                     post["data"]["id"],
                     subreddit=post["data"]["subreddit"],
                     limit=1,
@@ -565,7 +565,7 @@ class BotClient:
                 else:
                     print(f"No comments under post {parent_id}")
 
-                self.reddit.comment(
+                self.__reddit.comment(
                     "\n\n".join([
                         "**Mirrors**",
                         *mirrors,
@@ -589,7 +589,7 @@ class BotClient:
         subreddit: str | None = None,
         streamwo_mirror: bool = False,
     ):
-        res = self.reddit.info(ids=post_ids, subreddit=subreddit)
+        res = self.__reddit.info(ids=post_ids, subreddit=subreddit)
 
         if not res.ok:
             raise ValueError(
@@ -629,7 +629,7 @@ class BotClient:
             raise Exception("Invalid response while uploading file to " +
                             "JustStreamLive!")
 
-        return self.reddit.submit_url(
+        return self.__reddit.submit_url(
             title,
             vid_url,
             subreddit=subreddit,
@@ -651,7 +651,7 @@ class BotClient:
             raise Exception("Invalid response while uploading file to " +
                             "Streamable!")
 
-        return self.reddit.submit_url(
+        return self.__reddit.submit_url(
             title,
             vid_url,
             subreddit=subreddit,
@@ -671,7 +671,7 @@ class BotClient:
             raise Exception("Invalid response while uploading file to " +
                             "Streamja!")
 
-        return self.reddit.submit_url(
+        return self.__reddit.submit_url(
             title,
             vid_url,
             subreddit=subreddit,
@@ -691,7 +691,7 @@ class BotClient:
             raise Exception("Invalid response while uploading file to " +
                             "Streamwo!")
 
-        return self.reddit.submit_url(
+        return self.__reddit.submit_url(
             title, vid_url, subreddit=subreddit, flair_id=flair_id,
         )
 
@@ -708,7 +708,7 @@ class BotClient:
             raise Exception("Invalid response while uploading file to " +
                             "Streamff!")
 
-        return self.reddit.submit_url(
+        return self.__reddit.submit_url(
             title,
             vid_url,
             subreddit=subreddit,
