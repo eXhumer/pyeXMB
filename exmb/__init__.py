@@ -542,6 +542,15 @@ def __mirror_for_posts(
                   f"{post['data']['name']}!")
             mirrors.append(f"* [JustStreamLive]({jsl_vid_url})")
 
+        elif (
+            jsl_mirror_res.status_code == 400
+            and jsl_mirror_res.json()["detail"] == "File too big"
+        ):
+            print(f"JustStreamLive mirror failed for {post['data']['name']} " +
+                  "as it is too large!")
+            mirrors.append("* JustStreamLive: Failed as video file too " +
+                           "large for host")
+
         else:
             print("JustStreamLive mirror failed for " +
                   f"{post['data']['name']}!")
@@ -573,6 +582,12 @@ def __mirror_for_posts(
         if sff_vid_url is not None:
             print(f"Streamff mirror created for {post['data']['name']}!")
             mirrors.append(f"* [Streamff]({sff_vid_url})")
+
+        elif sff_mirror_res.status_code == 413:
+            print(f"Streamff mirror failed for {post['data']['name']} " +
+                  "as it is too large!")
+            mirrors.append("* Streamff: Failed as video file too large " +
+                           "for host")
 
         else:
             print(f"Streamff mirror failed for {post['data']['name']}!")
