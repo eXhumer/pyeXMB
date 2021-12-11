@@ -8,7 +8,7 @@ from typing import Any, Dict, List
 
 from exrc.client import OAuth2Client
 from exvhp.client import (
-    JustStreamLive, Streamable, Streamja, Streamwo, Streamff,
+    JustStreamLive, Mixture, Streamable, Streamja, Streamff,
 )
 from requests import Session
 
@@ -19,28 +19,95 @@ from . import (
     STREAMABLE_MAX_SIZE,
     STREAMFF_MAX_SIZE,
     STREAMJA_MAX_SIZE,
-    STREAMWO_MAX_SIZE,
+    MIXTURE_MAX_SIZE,
 )
 
 
 class BotClient:
-    def __init__(self, auth_alias: str) -> None:
+    def __init__(
+        self,
+        reddit: OAuth2Client,
+        juststreamlive: JustStreamLive,
+        streamable: Streamable,
+        streamja: Streamja,
+        streamff: Streamff,
+        mixture: Mixture,
+    ) -> None:
+        self.__reddit = reddit
+        self.__juststreamlive = juststreamlive
+        self.__streamable = streamable
+        self.__streamja = streamja
+        self.__streamff = streamff
+        self.__mixture = mixture
+
+    @classmethod
+    def reddit_auth_new_user_localserver_code_flow(
+        cls,
+        auth_alias: str,
+        client_id: str,
+        duration: str,
+        scopes: List[str],
+        callback_url: str = "http://localhost:65010/auth_callback",
+        client_secret: str | None = None,
+        state: str | None = None,
+        user_agent: str | None = None,
+    ):
         session = Session()
-        session.headers["User-Agent"] = __user_agent__
-        self.__reddit = OAuth2Client.load_from_file(
-            __config_path__ / f"{auth_alias}.json",
-            session=session,
+        session.headers["User-Agent"] = (
+            __user_agent__ if user_agent is None else user_agent
         )
-        self.__juststreamlive = JustStreamLive(session=session)
-        self.__streamable = Streamable(session=session)
-        self.__streamja = Streamja(session=session)
-        self.__streamff = Streamff(session=session)
-        self.__streamwo = Streamwo(session=session)
+
+        return cls(
+            OAuth2Client.localserver_code_flow(
+                client_id,
+                client_secret if client_secret else "",
+                callback_url,
+                duration,
+                scopes,
+                state=state,
+                user_agent=__user_agent__,
+                token_path=__config_path__ / f"{auth_alias}.json",
+                session=session,
+            ),
+            JustStreamLive(session=session),
+            Streamable(session=session),
+            Streamja(session=session),
+            Streamff(session=session),
+            Mixture(session=session),
+        )
+
+    @classmethod
+    def reddit_load_existing_user(
+        cls,
+        auth_alias: str,
+        user_agent: str | None = None,
+    ):
+        session = Session()
+        session.headers["User-Agent"] = (
+            __user_agent__ if user_agent is None else user_agent
+        )
+
+        return cls(
+            OAuth2Client.load_from_file(
+                __config_path__ / f"{auth_alias}.json"
+            ),
+            JustStreamLive(session=session),
+            Streamable(session=session),
+            Streamja(session=session),
+            Streamff(session=session),
+            Mixture(session=session),
+        )
+
+    def reddit_revoke(self):
+        return self.__reddit.revoke()
+
+    def reddit_save_to_file(self):
+        self.__reddit.save_to_file()
 
     def run_bot_for_subreddit(
         self,
         subreddit: str,
-        streamwo_mirror: bool = False,
+        mixture_mirror: bool = False,
         **listing_kwargs: str | int,
     ):
         if "before" not in listing_kwargs or listing_kwargs["before"] is None:
@@ -168,7 +235,7 @@ class BotClient:
                     if post["data"]["url"].startswith((
                         "https://streamable.com/",
                         "https://streamja.com/",
-                        "https://streamwo.com/file/",
+                        "https://mixture.gg/v/",
                         "https://streamff.com/v/",
                     )):
                         highlight_posts_stack.append(post["data"]["name"])
@@ -191,7 +258,7 @@ class BotClient:
 
             self.__mirror_for_posts(
                 highlight_posts,
-                streamwo_mirror=streamwo_mirror,
+                mixture_mirror=mixture_mirror,
             )
 
             print("Sleeping for 30 seconds!")
@@ -201,7 +268,7 @@ class BotClient:
         self,
         highlight_posts: List[Dict[str, Any]],
         max_processing_attempts: int = 10,
-        streamwo_mirror: bool = False,
+        mixture_mirror: bool = False,
     ):
         post_queue = Queue()
 
@@ -221,7 +288,7 @@ class BotClient:
             if not vid_url.startswith((
                 "https://streamable.com/",
                 "https://streamja.com/",
-                "https://streamwo.com/file/",
+                "https://mixture.gg/v/",
                 "https://streamff.com/v/",
             )):
                 print(
@@ -292,11 +359,11 @@ class BotClient:
                         self.__streamff.upload_video(media_data, "Mirror.mp4")
 
                 if (
-                    streamwo_mirror
-                    and media_data.getbuffer().nbytes <= STREAMWO_MAX_SIZE
+                    mixture_mirror
+                    and media_data.getbuffer().nbytes <= MIXTURE_MAX_SIZE
                 ):
-                    swo_mirror_res, swo_vid_url = \
-                        self.__streamwo.upload_video(media_data, "Mirror.mp4")
+                    mix_mirror_res, mix_vid_url = \
+                        self.__mixture.upload_video(media_data, "Mirror.mp4")
 
             elif vid_url.startswith("https://streamja.com/"):
                 streamja_id = vid_url.split("https://streamja.com/")[1]
@@ -365,20 +432,20 @@ class BotClient:
                         self.__streamff.upload_video(media_data, "Mirror.mp4")
 
                 if (
-                    streamwo_mirror
-                    and media_data.getbuffer().nbytes <= STREAMWO_MAX_SIZE
+                    mixture_mirror
+                    and media_data.getbuffer().nbytes <= MIXTURE_MAX_SIZE
                 ):
-                    swo_mirror_res, swo_vid_url = \
-                        self.__streamwo.upload_video(media_data, "Mirror.mp4")
+                    mix_mirror_res, mix_vid_url = \
+                        self.__mixture.upload_video(media_data, "Mirror.mp4")
 
-            elif vid_url.startswith("https://streamwo.com/file/"):
-                streamwo_id = vid_url.split("https://streamwo.com/file/")[1]
-                print(f"Processing {post['data']['name']} with Streamwo " +
-                      f"Video {streamwo_id}")
+            elif vid_url.startswith("https://mixture.gg/v/"):
+                mixture_id = vid_url.split("https://mixture.gg/v/")[1]
+                print(f"Processing {post['data']['name']} with Mixture " +
+                      f"Video {mixture_id}")
 
-                if not self.__streamwo.is_video_available(streamwo_id):
-                    print("Unable to get direct video link from Streamwo " +
-                          f"video ID {streamwo_id}. Video not available / " +
+                if not self.__mixture.is_video_available(mixture_id):
+                    print("Unable to get direct video link from Mixture " +
+                          f"video ID {mixture_id}. Video not available / " +
                           "taken down!")
                     continue
 
@@ -389,41 +456,41 @@ class BotClient:
                     ) is not None and (
                         datetime.now(tz=timezone.utc) - last_attempt
                     ).seconds < 5:
-                        print(f"Attempting Streamwo Video {streamwo_id} " +
+                        print(f"Attempting Mixture Video {mixture_id} " +
                               "mirror too quickly since last try! Must wait " +
                               "5 seconds between each attempt!")
                         post_queue.put(post_data)
                         continue
 
-                    if self.__streamwo.is_video_processing(streamwo_id):
+                    if self.__mixture.is_video_processing(mixture_id):
                         post_data["last_attempt"] = \
                             datetime.now(tz=timezone.utc)
-                        print(f"Streamwo Video {streamwo_id} still " +
+                        print(f"Mixture Video {mixture_id} still " +
                               "being processed, trying later!")
                         post_data["attempts"] += 1
                         post_queue.put(post_data)
                         continue
 
                 else:
-                    print(f"Streamwo Video {streamwo_id} still " +
+                    print(f"Mixture Video {mixture_id} still " +
                           "being processed! Max attempts reached, " +
                           "ignoring video!")
                     continue
 
-                vid_res = self.__streamwo.get_video(streamwo_id)
+                vid_res = self.__mixture.get_video(mixture_id)
                 media_data = BytesIO(vid_res.content)
 
                 if media_data.getbuffer().nbytes <= STREAMABLE_MAX_SIZE:
                     sab_mirror_res, sab_vid_url = \
-                        self.__streamable.clip_streamwo_video(
-                            streamwo_id,
+                        self.__streamable.clip_mixture_video(
+                            mixture_id,
                             mirror_title=post["data"]["title"],
                         )
 
                 if media_data.getbuffer().nbytes <= JUSTSTREAMLIVE_MAX_SIZE:
                     jsl_mirror_res, jsl_vid_url = \
-                        self.__juststreamlive.mirror_streamwo_video(
-                            streamwo_id
+                        self.__juststreamlive.mirror_mixture_video(
+                            mixture_id
                         )
 
                 if media_data.getbuffer().nbytes <= STREAMJA_MAX_SIZE:
@@ -435,11 +502,11 @@ class BotClient:
                         self.__streamff.upload_video(media_data, "Mirror.mp4")
 
                 if (
-                    streamwo_mirror
-                    and media_data.getbuffer().nbytes <= STREAMWO_MAX_SIZE
+                    mixture_mirror
+                    and media_data.getbuffer().nbytes <= MIXTURE_MAX_SIZE
                 ):
-                    swo_mirror_res, swo_vid_url = \
-                        self.__streamwo.upload_video(media_data, "Mirror.mp4")
+                    mix_mirror_res, mix_vid_url = \
+                        self.__mixture.upload_video(media_data, "Mirror.mp4")
 
             elif vid_url.startswith("https://streamff.com/v/"):
                 streamff_id = vid_url.split("https://streamff.com/v/")[1]
@@ -478,11 +545,11 @@ class BotClient:
                         self.__streamff.upload_video(media_data, "Mirror.mp4")
 
                 if (
-                    streamwo_mirror
-                    and media_data.getbuffer().nbytes <= STREAMWO_MAX_SIZE
+                    mixture_mirror
+                    and media_data.getbuffer().nbytes <= MIXTURE_MAX_SIZE
                 ):
-                    swo_mirror_res, swo_vid_url = \
-                        self.__streamwo.upload_video(media_data, "Mirror.mp4")
+                    mix_mirror_res, mix_vid_url = \
+                        self.__mixture.upload_video(media_data, "Mirror.mp4")
 
             mirrors = []
 
@@ -588,24 +655,24 @@ class BotClient:
                 mirrors.append("* Streamff: Failed as video file too large " +
                                "for host")
 
-            if streamwo_mirror:
-                if media_data.getbuffer().nbytes <= STREAMWO_MAX_SIZE:
-                    if swo_mirror_res.ok:
-                        print("Streamwo mirror created for " +
+            if mixture_mirror:
+                if media_data.getbuffer().nbytes <= MIXTURE_MAX_SIZE:
+                    if mix_mirror_res.ok:
+                        print("Mixture mirror created for " +
                               f"{post['data']['name']}!")
-                        mirrors.append(f"* [Streamwo]({swo_vid_url})")
+                        mirrors.append(f"* [Mixture]({mix_vid_url})")
 
                     else:
-                        print("Streamwo mirror failed for " +
+                        print("Mixture mirror failed for " +
                               f"{post['data']['name']}!")
-                        print(f"|- Status Code: {swo_mirror_res.status_code}")
-                        print(f"|- Request URL: {swo_mirror_res.url}")
-                        print(f"|- Response Text: {swo_mirror_res.text}")
+                        print(f"|- Status Code: {mix_mirror_res.status_code}")
+                        print(f"|- Request URL: {mix_mirror_res.url}")
+                        print(f"|- Response Text: {mix_mirror_res.text}")
 
                 else:
-                    print("Streamwo mirror failed for " +
+                    print("Mixture mirror failed for " +
                           f"{post['data']['name']} as it is too large!")
-                    mirrors.append("* Streamwo: Failed as video file too " +
+                    mirrors.append("* Mixture: Failed as video file too " +
                                    "large for host")
 
             if len(mirrors) > 0:
@@ -658,7 +725,7 @@ class BotClient:
         self,
         post_ids: List[str],
         subreddit: str | None = None,
-        streamwo_mirror: bool = False,
+        mixture_mirror: bool = False,
     ):
         res = self.__reddit.info(ids=post_ids, subreddit=subreddit)
 
@@ -684,7 +751,7 @@ class BotClient:
 
         self.__mirror_for_posts(
             res.json()["data"]["children"],
-            streamwo_mirror=streamwo_mirror,
+            mixture_mirror=mixture_mirror,
         )
 
     def post_juststreamlive(
@@ -749,18 +816,18 @@ class BotClient:
             flair_id=flair_id,
         )
 
-    def post_streamwo(
+    def post_mixture(
         self,
         media_path: Path,
         title: str,
         subreddit: str | None = None,
         flair_id: str | None = None,
     ):
-        res, vid_url = self.__streamwo.upload_from_file(media_path)
+        res, vid_url = self.__mixture.upload_from_file(media_path)
 
         if not res.ok:
             raise Exception("Invalid response while uploading file to " +
-                            "Streamwo!")
+                            "Mixture!")
 
         return self.__reddit.submit_url(
             title, vid_url, subreddit=subreddit, flair_id=flair_id,
@@ -785,28 +852,3 @@ class BotClient:
             subreddit=subreddit,
             flair_id=flair_id,
         )
-
-
-def reddit_auth_new_user_localserver_code_flow(
-    auth_alias: str,
-    client_id: str,
-    duration: str,
-    scopes: List[str],
-    callback_url: str = "http://localhost:65010/auth_callback",
-    client_secret: str | None = None,
-    state: str | None = None,
-):
-    return OAuth2Client.localserver_code_flow(
-        client_id,
-        client_secret if client_secret else "",
-        callback_url,
-        duration,
-        scopes,
-        state=state,
-        user_agent=__user_agent__,
-        token_path=__config_path__ / f"{auth_alias}.json",
-    )
-
-
-def reddit_load_existing_user(auth_alias: str):
-    return OAuth2Client.load_from_file(__config_path__ / f"{auth_alias}.json")
