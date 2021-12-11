@@ -290,27 +290,30 @@ class BotClient:
                 vid_res = self.__streamable.get_video(streamable_id)
                 media_data = BytesIO(vid_res.content)
 
-                if len(media_data) <= STREAMABLE_MAX_SIZE:
+                if media_data.getbuffer().nbytes <= STREAMABLE_MAX_SIZE:
                     sab_mirror_res, sab_vid_url = self.__streamable.clip_video(
                         streamable_id,
                         mirror_title=post["data"]["title"],
                     )
 
-                if len(media_data) <= STREAMABLE_MAX_SIZE:
+                if media_data.getbuffer().nbytes <= STREAMABLE_MAX_SIZE:
                     jsl_mirror_res, jsl_vid_url = \
                         self.__juststreamlive.mirror_streamable_video(
                             streamable_id,
                         )
 
-                if len(media_data) <= STREAMJA_MAX_SIZE:
+                if media_data.getbuffer().nbytes <= STREAMJA_MAX_SIZE:
                     sja_mirror_res, sja_embed_url, sja_vid_url = \
                         self.__streamja.upload_video(media_data, "Mirror.mp4")
 
-                if len(media_data) <= STREAMFF_MAX_SIZE:
+                if media_data.getbuffer().nbytes <= STREAMFF_MAX_SIZE:
                     sff_mirror_res, sff_vid_url = \
                         self.__streamff.upload_video(media_data, "Mirror.mp4")
 
-                if streamwo_mirror and len(media_data) <= STREAMWO_MAX_SIZE:
+                if (
+                    streamwo_mirror
+                    and media_data.getbuffer().nbytes <= STREAMWO_MAX_SIZE
+                ):
                     swo_mirror_res, swo_vid_url = \
                         self.__streamwo.upload_video(media_data, "Mirror.mp4")
 
@@ -360,27 +363,30 @@ class BotClient:
                 vid_res = self.__streamja.get_video(streamja_id)
                 media_data = BytesIO(vid_res.content)
 
-                if len(media_data) <= STREAMABLE_MAX_SIZE:
+                if media_data.getbuffer().nbytes <= STREAMABLE_MAX_SIZE:
                     sab_mirror_res, sab_vid_url = \
                         self.__streamable.clip_streamja_video(
                             streamja_id,
                             mirror_title=post["data"]["title"],
                         )
-                if len(media_data) <= JUSTSTREAMLIVE_MAX_SIZE:
+                if media_data.getbuffer().nbytes <= JUSTSTREAMLIVE_MAX_SIZE:
                     jsl_mirror_res, jsl_vid_url = \
                         self.__juststreamlive.mirror_streamja_video(
                             streamja_id
                         )
 
-                if len(media_data) <= STREAMJA_MAX_SIZE:
+                if media_data.getbuffer().nbytes <= STREAMJA_MAX_SIZE:
                     sja_mirror_res, sja_embed_url, sja_vid_url = \
                         self.__streamja.upload_video(media_data, "Mirror.mp4")
 
-                if len(media_data) <= STREAMFF_MAX_SIZE:
+                if media_data.getbuffer().nbytes <= STREAMFF_MAX_SIZE:
                     sff_mirror_res, sff_vid_url = \
                         self.__streamff.upload_video(media_data, "Mirror.mp4")
 
-                if streamwo_mirror and len(media_data) <= STREAMWO_MAX_SIZE:
+                if (
+                    streamwo_mirror
+                    and media_data.getbuffer().nbytes <= STREAMWO_MAX_SIZE
+                ):
                     swo_mirror_res, swo_vid_url = \
                         self.__streamwo.upload_video(media_data, "Mirror.mp4")
 
@@ -426,28 +432,31 @@ class BotClient:
                 vid_res = self.__streamwo.get_video(streamwo_id)
                 media_data = BytesIO(vid_res.content)
 
-                if len(media_data) <= STREAMABLE_MAX_SIZE:
+                if media_data.getbuffer().nbytes <= STREAMABLE_MAX_SIZE:
                     sab_mirror_res, sab_vid_url = \
                         self.__streamable.clip_streamwo_video(
                             streamwo_id,
                             mirror_title=post["data"]["title"],
                         )
 
-                if len(media_data) <= JUSTSTREAMLIVE_MAX_SIZE:
+                if media_data.getbuffer().nbytes <= JUSTSTREAMLIVE_MAX_SIZE:
                     jsl_mirror_res, jsl_vid_url = \
                         self.__juststreamlive.mirror_streamwo_video(
                             streamwo_id
                         )
 
-                if len(media_data) <= STREAMJA_MAX_SIZE:
+                if media_data.getbuffer().nbytes <= STREAMJA_MAX_SIZE:
                     sja_mirror_res, sja_embed_url, sja_vid_url = \
                         self.__streamja.upload_video(media_data, "Mirror.mp4")
 
-                if len(media_data) <= STREAMFF_MAX_SIZE:
+                if media_data.getbuffer().nbytes <= STREAMFF_MAX_SIZE:
                     sff_mirror_res, sff_vid_url = \
                         self.__streamff.upload_video(media_data, "Mirror.mp4")
 
-                if streamwo_mirror and len(media_data) <= STREAMWO_MAX_SIZE:
+                if (
+                    streamwo_mirror
+                    and media_data.getbuffer().nbytes <= STREAMWO_MAX_SIZE
+                ):
                     swo_mirror_res, swo_vid_url = \
                         self.__streamwo.upload_video(media_data, "Mirror.mp4")
 
@@ -466,34 +475,37 @@ class BotClient:
 
                 media_data = BytesIO(vid_res.content)
 
-                if len(media_data) <= STREAMABLE_MAX_SIZE:
+                if media_data.getbuffer().nbytes <= STREAMABLE_MAX_SIZE:
                     sab_mirror_res, sab_vid_url = \
                         self.__streamable.clip_streamff_video(
                             streamff_id,
                             mirror_title=post["data"]["title"],
                         )
 
-                if len(media_data) <= JUSTSTREAMLIVE_MAX_SIZE:
+                if media_data.getbuffer().nbytes <= JUSTSTREAMLIVE_MAX_SIZE:
                     jsl_mirror_res, jsl_vid_url = \
                         self.__juststreamlive.upload_video(
                             media_data, "Mirror.mp4",
                         )
 
-                if len(media_data) <= STREAMJA_MAX_SIZE:
+                if media_data.getbuffer().nbytes <= STREAMJA_MAX_SIZE:
                     sja_mirror_res, sja_embed_url, sja_vid_url = \
                         self.__streamja.upload_video(media_data, "Mirror.mp4")
 
-                if len(media_data) <= STREAMFF_MAX_SIZE:
+                if media_data.getbuffer().nbytes <= STREAMFF_MAX_SIZE:
                     sff_mirror_res, sff_vid_url = \
                         self.__streamff.upload_video(media_data, "Mirror.mp4")
 
-                if streamwo_mirror and len(media_data) <= STREAMWO_MAX_SIZE:
+                if (
+                    streamwo_mirror
+                    and media_data.getbuffer().nbytes <= STREAMWO_MAX_SIZE
+                ):
                     swo_mirror_res, swo_vid_url = \
                         self.__streamwo.upload_video(media_data, "Mirror.mp4")
 
             mirrors = []
 
-            if len(media_data) <= STREAMABLE_MAX_SIZE:
+            if media_data.getbuffer().nbytes <= STREAMABLE_MAX_SIZE:
                 if sab_vid_url is not None:
                     print("Streamable mirror created for " +
                           f"{post['data']['name']}!")
@@ -512,7 +524,7 @@ class BotClient:
                 mirrors.append("* Streamable: Failed as video file too " +
                                "large for host")
 
-            if len(media_data) <= JUSTSTREAMLIVE_MAX_SIZE:
+            if media_data.getbuffer().nbytes <= JUSTSTREAMLIVE_MAX_SIZE:
                 if jsl_vid_url is not None:
                     print("JustStreamLive mirror created for " +
                           f"{post['data']['name']}!")
@@ -540,7 +552,7 @@ class BotClient:
                 mirrors.append("* JustStreamLive: Failed as video file too " +
                                "large for host")
 
-            if len(media_data) <= STREAMJA_MAX_SIZE:
+            if media_data.getbuffer().nbytes <= STREAMJA_MAX_SIZE:
                 if sja_embed_url is not None and sja_vid_url is not None:
                     print("Streamja mirror created for " +
                           f"{post['data']['name']}!")
@@ -570,7 +582,7 @@ class BotClient:
                 mirrors.append("* Streamja: Failed as video file too large " +
                                "for host")
 
-            if len(media_data) <= STREAMFF_MAX_SIZE:
+            if media_data.getbuffer().nbytes <= STREAMFF_MAX_SIZE:
                 if sff_vid_url is not None:
                     print("Streamff mirror created for " +
                           f"{post['data']['name']}!")
@@ -595,24 +607,25 @@ class BotClient:
                 mirrors.append("* Streamff: Failed as video file too large " +
                                "for host")
 
-            if streamwo_mirror and len(media_data) <= STREAMWO_MAX_SIZE:
-                if swo_mirror_res.ok:
-                    print("Streamwo mirror created for " +
-                          f"{post['data']['name']}!")
-                    mirrors.append(f"* [Streamwo]({swo_vid_url})")
+            if streamwo_mirror:
+                if media_data.getbuffer().nbytes <= STREAMWO_MAX_SIZE:
+                    if swo_mirror_res.ok:
+                        print("Streamwo mirror created for " +
+                              f"{post['data']['name']}!")
+                        mirrors.append(f"* [Streamwo]({swo_vid_url})")
+
+                    else:
+                        print("Streamwo mirror failed for " +
+                              f"{post['data']['name']}!")
+                        print(f"|- Status Code: {swo_mirror_res.status_code}")
+                        print(f"|- Request URL: {swo_mirror_res.url}")
+                        print(f"|- Response Text: {swo_mirror_res.text}")
 
                 else:
                     print("Streamwo mirror failed for " +
-                          f"{post['data']['name']}!")
-                    print(f"|- Status Code: {swo_mirror_res.status_code}")
-                    print(f"|- Request URL: {swo_mirror_res.url}")
-                    print(f"|- Response Text: {swo_mirror_res.text}")
-
-            else:
-                print(f"Streamwo mirror failed for {post['data']['name']} " +
-                      "as it is too large!")
-                mirrors.append("* Streamwo: Failed as video file too large " +
-                               "for host")
+                          f"{post['data']['name']} as it is too large!")
+                    mirrors.append("* Streamwo: Failed as video file too " +
+                                   "large for host")
 
             if len(mirrors) > 0:
                 parent_id = post["data"]["name"]
