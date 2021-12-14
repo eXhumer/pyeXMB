@@ -694,11 +694,16 @@ class BotClient:
                 ):
                     post_first_comment = res.json()[1]["data"]["children"][0]
 
-                    if post_first_comment["data"]["stickied"] is True:
+                    if "stickied" not in post_first_comment["data"]:
+                        print("Stickied property not found for comment " +
+                              f"{post_first_comment['data']['name']} under " +
+                              f"post {parent_id}")
+
+                    elif post_first_comment["data"]["stickied"] is True:
                         parent_id = post_first_comment["data"]["name"]
 
                     else:
-                        print(f"No sticked comment under post {parent_id}")
+                        print(f"No stickied comment under post {parent_id}")
 
                 else:
                     print(f"No comments under post {parent_id}")
