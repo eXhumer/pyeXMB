@@ -58,6 +58,7 @@ def __parse_args(args: Namespace):
             ).run_bot_for_subreddit(
                 args.subreddit if args.subreddit else "formula1",
                 mixture_mirror=args.mixture_mirror,
+                streamwo_mirror=args.streamwo_mirror,
                 before=args.before,
                 limit=args.limit,
             )
@@ -75,6 +76,7 @@ def __parse_args(args: Namespace):
                 args.post_ids,
                 subreddit=args.subreddit,
                 mixture_mirror=args.mixture_mirror,
+                streamwo_mirror=args.streamwo_mirror,
             )
 
         else:
@@ -146,6 +148,22 @@ def __parse_args(args: Namespace):
                 f"No authorization alias with key {args.alias} found!",
             )
 
+    elif args.action == "post-streamwo":
+        if (__config_path__ / f"{args.alias}.json").is_file():
+            BotClient.reddit_load_existing_user(
+                args.alias
+            ).post_streamwo(
+                args.media_path,
+                args.title,
+                subreddit=args.subreddit,
+                flair_id=args.flair_id,
+            )
+
+        else:
+            raise KeyError(
+                f"No authorization alias with key {args.alias} found!",
+            )
+
     elif args.action == "post-streamff":
         if (__config_path__ / f"{args.alias}.json").is_file():
             BotClient.reddit_load_existing_user(
@@ -190,6 +208,7 @@ def console_main():
     run_parser.add_argument("--limit", type=int)
     run_parser.add_argument("--subreddit")
     run_parser.add_argument("--mixture-mirror", action="store_true")
+    run_parser.add_argument("--streamwo-mirror", action="store_true")
     mirror_for_post_parser = subparsers.add_parser("mirror-for-post")
     mirror_for_post_parser.add_argument("alias")
     mirror_for_post_parser.add_argument(
@@ -197,6 +216,9 @@ def console_main():
     )
     mirror_for_post_parser.add_argument(
         "--mixture-mirror", action="store_true",
+    )
+    mirror_for_post_parser.add_argument(
+        "--streamwo-mirror", action="store_true",
     )
     mirror_for_post_parser.add_argument("--subreddit")
     post_juststreamlive_parser = subparsers.add_parser("post-juststreamlive")
@@ -223,6 +245,12 @@ def console_main():
     post_mixture_parser.add_argument("title")
     post_mixture_parser.add_argument("--subreddit")
     post_mixture_parser.add_argument("--flair-id")
+    post_streamwo_parser = subparsers.add_parser("post-streamwo")
+    post_streamwo_parser.add_argument("alias")
+    post_streamwo_parser.add_argument("media_path", type=Path)
+    post_streamwo_parser.add_argument("title")
+    post_streamwo_parser.add_argument("--subreddit")
+    post_streamwo_parser.add_argument("--flair-id")
     post_streamff_parser = subparsers.add_parser("post-streamff")
     post_streamff_parser.add_argument("alias")
     post_streamff_parser.add_argument("media_path", type=Path)
