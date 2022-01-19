@@ -61,6 +61,7 @@ def __parse_args(args: Namespace):
                 streamwo_mirror=args.streamwo_mirror,
                 before=args.before,
                 limit=args.limit,
+                skip_missing_automod=args.skip_missing_automod,
             )
 
         else:
@@ -209,6 +210,7 @@ def console_main():
     run_parser.add_argument("--subreddit")
     run_parser.add_argument("--mixture-mirror", action="store_true")
     run_parser.add_argument("--streamwo-mirror", action="store_true")
+    run_parser.add_argument("--skip-missing-automod", action="store_true")
     mirror_for_post_parser = subparsers.add_parser("mirror-for-post")
     mirror_for_post_parser.add_argument("alias")
     mirror_for_post_parser.add_argument(

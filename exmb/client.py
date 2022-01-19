@@ -47,7 +47,7 @@ class BotClient:
 
         latest_post = res.json()["data"]["children"][0]
         post_removal_status = latest_post["data"]["removed_by_category"]
-        return post_removal_status is None
+        return post_removal_status is not None
 
     def __get_latest_post_name(self, subreddit: str):
         res = self.__reddit_client.posts(
@@ -128,11 +128,12 @@ class BotClient:
         before: str | None = None,
         limit: int | None = None,
         interval: int = 30,
+        skip_missing_automod: bool = False,
     ):
         if not before:
             print("before not specified! Attempting to retrieve latest " +
                   "post name")
-            before = self.__get_latest_post_name()
+            before = self.__get_latest_post_name(subreddit)
             print(f"Latest post name: {before}")
 
         mirror_postname_stack = deque()
@@ -166,12 +167,12 @@ class BotClient:
 
                     except IndexError:
                         print("All mirrored posts were deleted/removed!")
-                        before = self.__get_latest_post_name()
+                        before = self.__get_latest_post_name(subreddit)
                         print(f"Setting latest post as {before}")
 
                 else:
                     print("No previous mirrored highlight post found!")
-                    before = self.__get_latest_post_name()
+                    before = self.__get_latest_post_name(subreddit)
                     print(f"Setting latest post as {before}")
 
             print(f"Retrieving all posts before post name {before}")
@@ -216,6 +217,7 @@ class BotClient:
                 highlight_posts,
                 mixture_mirror=mixture_mirror,
                 streamwo_mirror=streamwo_mirror,
+                skip_missing_automod=skip_missing_automod,
             )
 
             print(f"Sleeping for {interval} seconds!")
@@ -228,6 +230,7 @@ class BotClient:
         minimum_retry_interval: int = 5,
         mixture_mirror: bool = False,
         streamwo_mirror: bool = False,
+        skip_missing_automod: bool = False,
     ):
         post_queue = Queue()
 
@@ -733,6 +736,9 @@ class BotClient:
                         print("Stickied property not found for comment " +
                               f"{post_first_comment['data']['name']} under " +
                               f"post {parent_id}")
+
+                        if skip_missing_automod:
+                            continue
 
                     elif post_first_comment["data"]["stickied"] is True:
                         parent_id = post_first_comment["data"]["name"]
