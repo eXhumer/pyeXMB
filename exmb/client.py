@@ -738,6 +738,8 @@ class BotClient:
                               f"post {parent_id}")
 
                         if skip_missing_automod:
+                            print("Requested skipping posts without AutoMod " +
+                                  "comment")
                             continue
 
                     elif post_first_comment["data"]["stickied"] is True:
@@ -745,6 +747,11 @@ class BotClient:
 
                     else:
                         print(f"No stickied comment under post {parent_id}")
+
+                        if skip_missing_automod:
+                            print("Requested skipping posts without AutoMod " +
+                                  "comment")
+                            continue
 
                 else:
                     print(f"No comments under post {parent_id}")
