@@ -1,5 +1,5 @@
 # eXMB
-Bot to mirror supported video links, powered by [eXRC](https://github.com/eXhumer/pyeXRC) & [eXVHP](https://github.com/eXhumer/pyeXVHP).
+Bot to mirror supported video links from a subreddit, powered by [eXRC](https://github.com/eXhumer/pyeXRC) & [eXVHP](https://github.com/eXhumer/pyeXVHP).
 
 ## Package Installation Guide
 ### Requires
