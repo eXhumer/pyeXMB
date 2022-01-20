@@ -127,7 +127,7 @@ class BotClient:
         streamwo_mirror: bool = False,
         before: str | None = None,
         limit: int | None = None,
-        interval: int = 30,
+        interval: int = 5,
         skip_missing_automod: bool = False,
     ):
         if not before:
