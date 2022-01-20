@@ -207,6 +207,28 @@ class BotClient:
                         "https://streamja.com/",
                         "https://streamwo.com/file/",
                     )):
+                        res = self.__reddit_client.comments(
+                            post["data"]["id"],
+                            subreddit=post["data"]["subreddit"],
+                            limit=1,
+                        )
+                        res.raise_for_status()
+
+                        if (
+                            len(res.json()) == 2
+                            and len(res.json()[1]["data"]["children"]) > 0
+                        ):
+                            post_first_comment = \
+                                res.json()[1]["data"]["children"][0]
+
+                            if (("stickied" not in post_first_comment["data"]
+                                    or post_first_comment["data"]["stickied"]
+                                    is False) and skip_missing_automod):
+                                continue
+
+                        elif skip_missing_automod:
+                            continue
+
                         mirror_postname_stack.append(post["data"]["name"])
                         highlight_posts.append(post)
 
@@ -217,7 +239,6 @@ class BotClient:
                 highlight_posts,
                 mixture_mirror=mixture_mirror,
                 streamwo_mirror=streamwo_mirror,
-                skip_missing_automod=skip_missing_automod,
             )
 
             print(f"Sleeping for {interval} seconds!")
@@ -230,7 +251,6 @@ class BotClient:
         minimum_retry_interval: int = 5,
         mixture_mirror: bool = False,
         streamwo_mirror: bool = False,
-        skip_missing_automod: bool = False,
     ):
         post_queue = Queue()
 
@@ -737,21 +757,11 @@ class BotClient:
                               f"{post_first_comment['data']['name']} under " +
                               f"post {parent_id}")
 
-                        if skip_missing_automod:
-                            print("Requested skipping posts without AutoMod " +
-                                  "comment")
-                            continue
-
                     elif post_first_comment["data"]["stickied"] is True:
                         parent_id = post_first_comment["data"]["name"]
 
                     else:
                         print(f"No stickied comment under post {parent_id}")
-
-                        if skip_missing_automod:
-                            print("Requested skipping posts without AutoMod " +
-                                  "comment")
-                            continue
 
                 else:
                     print(f"No comments under post {parent_id}")
