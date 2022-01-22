@@ -21,6 +21,7 @@ from . import (
     __user_agent__,
     JUSTSTREAMLIVE_MAX_SIZE,
     MIXTURE_MAX_SIZE,
+    REDDIT_MAX_SIZE,
     STREAMABLE_MAX_SIZE,
     STREAMFF_MAX_SIZE,
     STREAMJA_MAX_SIZE,
@@ -123,6 +124,7 @@ class BotClient:
     def run_bot_for_subreddit(
         self,
         subreddit: str,
+        reddit_mirror: str | None = None,
         mixture_mirror: bool = False,
         streamwo_mirror: bool = False,
         before: str | None = None,
@@ -237,6 +239,7 @@ class BotClient:
 
             self.__mirror_for_posts(
                 highlight_posts,
+                reddit_mirror=reddit_mirror,
                 mixture_mirror=mixture_mirror,
                 streamwo_mirror=streamwo_mirror,
             )
@@ -249,6 +252,7 @@ class BotClient:
         highlight_posts: List[Dict[str, Any]],
         max_processing_attempts: int = 10,
         minimum_retry_interval: int = 5,
+        reddit_mirror: str | None = None,
         mixture_mirror: bool = False,
         streamwo_mirror: bool = False,
     ):
@@ -355,6 +359,17 @@ class BotClient:
                         media_data, "Mirror.mp4",
                     )
 
+                if (
+                    reddit_mirror
+                    and media_data.getbuffer().nbytes <= REDDIT_MAX_SIZE
+                ):
+                    red_url = self.__reddit_client.submit_video(
+                        post["data"]["title"],
+                        media_data,
+                        "Mirror.mp4",
+                        subreddit=reddit_mirror,
+                    )[1]
+
             elif vid_url.startswith("https://streamable.com/"):
                 shortcode = vid_url.split("https://streamable.com/")[1]
                 print(f"Processing {post['data']['name']} with Streamable " +
@@ -439,6 +454,17 @@ class BotClient:
                     swo_mirror = self.__vhp_client.streamwo.upload_video(
                         media_data, "Mirror.mp4",
                     )
+
+                if (
+                    reddit_mirror
+                    and media_data.getbuffer().nbytes <= REDDIT_MAX_SIZE
+                ):
+                    red_url = self.__reddit_client.submit_video(
+                        post["data"]["title"],
+                        media_data,
+                        "Mirror.mp4",
+                        subreddit=reddit_mirror,
+                    )[1]
 
             elif vid_url.startswith("https://streamja.com/"):
                 short_id = vid_url.split("https://streamja.com/")[1]
@@ -529,6 +555,17 @@ class BotClient:
                         media_data, "Mirror.mp4",
                     )
 
+                if (
+                    reddit_mirror
+                    and media_data.getbuffer().nbytes <= REDDIT_MAX_SIZE
+                ):
+                    red_url = self.__reddit_client.submit_video(
+                        post["data"]["title"],
+                        media_data,
+                        "Mirror.mp4",
+                        subreddit=reddit_mirror,
+                    )[1]
+
             elif vid_url.startswith("https://streamff.com/v/"):
                 streamff_id = vid_url.split("https://streamff.com/v/")[1]
                 print(f"Processing {post['data']['name']} with Streamff " +
@@ -578,6 +615,17 @@ class BotClient:
                         media_data,
                         "Mirror.mp4",
                     )
+
+                if (
+                    reddit_mirror
+                    and media_data.getbuffer().nbytes <= REDDIT_MAX_SIZE
+                ):
+                    red_url = self.__reddit_client.submit_video(
+                        post["data"]["title"],
+                        media_data,
+                        "Mirror.mp4",
+                        subreddit=reddit_mirror,
+                    )[1]
 
             elif vid_url.startswith("https://streamwo.com/file/"):
                 link_id = vid_url.split("https://streamwo.com/file/")[1]
@@ -660,6 +708,17 @@ class BotClient:
                         media_data, "Mirror.mp4",
                     )
 
+                if (
+                    reddit_mirror
+                    and media_data.getbuffer().nbytes <= REDDIT_MAX_SIZE
+                ):
+                    red_url = self.__reddit_client.submit_video(
+                        post["data"]["title"],
+                        media_data,
+                        "Mirror.mp4",
+                        subreddit=reddit_mirror,
+                    )[1]
+
             else:
                 assert False, "Should be unreachable!"
 
@@ -734,6 +793,18 @@ class BotClient:
                     print("Streamwo mirror failed for " +
                           f"{post['data']['name']} as it is too large!")
                     mirrors.append("* Streamwo: Failed as video file too " +
+                                   "large for host")
+
+            if reddit_mirror:
+                if media_data.getbuffer().nbytes <= REDDIT_MAX_SIZE:
+                    print("Reddit mirror created for " +
+                          f"{post['data']['name']}!")
+                    mirrors.append(f"* [v.redd.it]({red_url})")
+
+                else:
+                    print("Reddit mirror failed for " +
+                          f"{post['data']['name']} as it is too large!")
+                    mirrors.append("* v.redd.it: Failed as video file too " +
                                    "large for host")
 
             if len(mirrors) > 0:

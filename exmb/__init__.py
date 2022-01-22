@@ -24,6 +24,7 @@ __user_agent__ = f"{__package__}/{__version__}"
 __MB = 1 * 1024 * 1024
 JUSTSTREAMLIVE_MAX_SIZE = 200 * __MB
 MIXTURE_MAX_SIZE = 512 * __MB
+REDDIT_MAX_SIZE = 1024 * __MB
 STREAMABLE_MAX_SIZE = 250 * __MB
 STREAMFF_MAX_SIZE = 200 * __MB
 STREAMJA_MAX_SIZE = 30 * __MB

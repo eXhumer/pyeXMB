@@ -57,6 +57,7 @@ def __parse_args(args: Namespace):
                 args.alias
             ).run_bot_for_subreddit(
                 args.subreddit if args.subreddit else "formula1",
+                reddit_mirror=args.reddit_mirror,
                 mixture_mirror=args.mixture_mirror,
                 streamwo_mirror=args.streamwo_mirror,
                 before=args.before,
@@ -208,6 +209,7 @@ def console_main():
     run_parser.add_argument("--before")
     run_parser.add_argument("--limit", type=int)
     run_parser.add_argument("--subreddit")
+    run_parser.add_argument("--reddit-mirror")
     run_parser.add_argument("--mixture-mirror", action="store_true")
     run_parser.add_argument("--streamwo-mirror", action="store_true")
     run_parser.add_argument("--skip-missing-automod", action="store_true")
@@ -216,6 +218,7 @@ def console_main():
     mirror_for_post_parser.add_argument(
         "post_ids", metavar="post_id", nargs="+",
     )
+    mirror_for_post_parser.add_argument("--reddit-mirror")
     mirror_for_post_parser.add_argument(
         "--mixture-mirror", action="store_true",
     )
