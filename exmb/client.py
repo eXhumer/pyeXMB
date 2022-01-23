@@ -34,7 +34,6 @@ class BotClient:
         self,
         exrc: OAuth2Client,
         exvhp: VHPClient,
-
     ) -> None:
         self.__reddit_client = exrc
         self.__vhp_client = exvhp
@@ -131,6 +130,8 @@ class BotClient:
         limit: int | None = None,
         interval: int = 5,
         skip_missing_automod: bool = False,
+        max_processing_attempts: int = 10,
+        minimum_retry_interval: int = 5,
     ):
         if not before:
             print("before not specified! Attempting to retrieve latest " +
@@ -242,6 +243,8 @@ class BotClient:
                 reddit_mirror=reddit_mirror,
                 mixture_mirror=mixture_mirror,
                 streamwo_mirror=streamwo_mirror,
+                max_processing_attempts=max_processing_attempts,
+                minimum_retry_interval=minimum_retry_interval,
             )
 
             print(f"Sleeping for {interval} seconds!")
@@ -855,22 +858,26 @@ class BotClient:
                 print("Failed to create any mirror for " +
                       f"{post['data']['name']}")
 
-    def mirror_for_posts_by_id(
+    def mirror_for_posts_by_names(
         self,
-        post_ids: List[str],
+        post_names: List[str],
         subreddit: str | None = None,
         mixture_mirror: bool = False,
         streamwo_mirror: bool = False,
+        reddit_mirror: str | None = None,
+        skip_missing_automod: bool = False,
+        max_processing_attempts: int = 10,
+        minimum_retry_interval: int = 5,
     ):
-        res = self.__reddit_client.info(ids=post_ids, subreddit=subreddit)
+        res = self.__reddit_client.info(ids=post_names, subreddit=subreddit)
         res.raise_for_status()
 
-        if len(post_ids) != res.json()["data"]["dist"]:
+        if len(post_names) != res.json()["data"]["dist"]:
             not_found_posts = ", ".join((
-                post_id
-                for post_id
-                in post_ids
-                if post_id
+                post_name
+                for post_name
+                in post_names
+                if post_name
                 not in (
                     post["data"]["name"]
                     for post
@@ -880,11 +887,43 @@ class BotClient:
 
             print(f"Posts {not_found_posts} were not found!")
 
-        self.__mirror_for_posts(
-            res.json()["data"]["children"],
-            mixture_mirror=mixture_mirror,
-            streamwo_mirror=streamwo_mirror,
-        )
+        to_fetch_comment_list: list = res.json()["data"]["children"]
+        to_mirror_list = []
+
+        for to_fetch_comment in to_fetch_comment_list:
+            res = self.__reddit_client.comments(
+                to_fetch_comment["data"]["id"],
+                subreddit=to_fetch_comment["data"]["subreddit"],
+                limit=1,
+            )
+            res.raise_for_status()
+
+            if (
+                len(res.json()) == 2
+                and len(res.json()[1]["data"]["children"]) > 0
+            ):
+                post_first_comment = \
+                    res.json()[1]["data"]["children"][0]
+
+                if (("stickied" not in post_first_comment["data"]
+                        or post_first_comment["data"]["stickied"]
+                        is False) and skip_missing_automod):
+                    continue
+
+            elif skip_missing_automod:
+                continue
+
+            to_mirror_list.append(to_fetch_comment)
+
+        if len(to_mirror_list):
+            self.__mirror_for_posts(
+                to_mirror_list,
+                reddit_mirror=reddit_mirror,
+                mixture_mirror=mixture_mirror,
+                streamwo_mirror=streamwo_mirror,
+                max_processing_attempts=max_processing_attempts,
+                minimum_retry_interval=minimum_retry_interval,
+            )
 
     def post_juststreamlive(
         self,
@@ -894,47 +933,6 @@ class BotClient:
         flair_id: str | None = None,
     ):
         video = self.__vhp_client.juststreamlive.upload_video(
-            media_path.open(mode="rb"),
-            media_path.name,
-        )
-
-        return self.__reddit_client.submit_url(
-            post_title,
-            str(video.url),
-            subreddit=subreddit,
-            flair_id=flair_id,
-        )
-
-    def post_streamable(
-        self,
-        media_path: Path,
-        post_title: str,
-        subreddit: str | None = None,
-        flair_id: str | None = None,
-        upload_region: str = "us-east-1",
-    ):
-        video = self.__vhp_client.streamable.upload_video(
-            media_path.open(mode="rb"),
-            media_path.name,
-            title=post_title,
-            upload_region=upload_region,
-        )
-
-        return self.__reddit_client.submit_url(
-            post_title,
-            str(video.url),
-            subreddit=subreddit,
-            flair_id=flair_id,
-        )
-
-    def post_streamja(
-        self,
-        media_path: Path,
-        post_title: str,
-        subreddit: str | None = None,
-        flair_id: str | None = None,
-    ):
-        video = self.__vhp_client.streamja.upload_video(
             media_path.open(mode="rb"),
             media_path.name,
         )
@@ -965,16 +963,35 @@ class BotClient:
             flair_id=flair_id,
         )
 
-    def post_streamwo(
+    def post_reddit(
         self,
         media_path: Path,
         post_title: str,
         subreddit: str | None = None,
         flair_id: str | None = None,
     ):
-        video = self.__vhp_client.streamwo.upload_video(
+        with media_path.open(mode="rb") as media_stream:
+            return self.__reddit_client.submit_video(
+                post_title,
+                media_stream,
+                media_path.name,
+                subreddit=subreddit,
+                flair_id=flair_id,
+            )
+
+    def post_streamable(
+        self,
+        media_path: Path,
+        post_title: str,
+        subreddit: str | None = None,
+        flair_id: str | None = None,
+        upload_region: str = "us-east-1",
+    ):
+        video = self.__vhp_client.streamable.upload_video(
             media_path.open(mode="rb"),
             media_path.name,
+            title=post_title,
+            upload_region=upload_region,
         )
 
         return self.__reddit_client.submit_url(
@@ -992,6 +1009,44 @@ class BotClient:
         flair_id: str | None = None,
     ):
         video = self.__vhp_client.streamff.upload_video(
+            media_path.open(mode="rb"),
+            media_path.name,
+        )
+
+        return self.__reddit_client.submit_url(
+            post_title,
+            str(video.url),
+            subreddit=subreddit,
+            flair_id=flair_id,
+        )
+
+    def post_streamja(
+        self,
+        media_path: Path,
+        post_title: str,
+        subreddit: str | None = None,
+        flair_id: str | None = None,
+    ):
+        video = self.__vhp_client.streamja.upload_video(
+            media_path.open(mode="rb"),
+            media_path.name,
+        )
+
+        return self.__reddit_client.submit_url(
+            post_title,
+            str(video.url),
+            subreddit=subreddit,
+            flair_id=flair_id,
+        )
+
+    def post_streamwo(
+        self,
+        media_path: Path,
+        post_title: str,
+        subreddit: str | None = None,
+        flair_id: str | None = None,
+    ):
+        video = self.__vhp_client.streamwo.upload_video(
             media_path.open(mode="rb"),
             media_path.name,
         )
