@@ -8,11 +8,10 @@ from typing import Any, Dict, List
 from exrc.client import OAuth2Client
 from exvhp import (
     Client as VHPClient,
-    MixtureVideo,
     StreamableVideo,
     StreamffVideo,
+    StreamggVideo,
     StreamjaVideo,
-    StreamwoVideo,
 )
 from requests import Session
 
@@ -20,12 +19,11 @@ from . import (
     __config_path__,
     __user_agent__,
     JUSTSTREAMLIVE_MAX_SIZE,
-    MIXTURE_MAX_SIZE,
     REDDIT_MAX_SIZE,
     STREAMABLE_MAX_SIZE,
     STREAMFF_MAX_SIZE,
+    STREAMGG_MAX_SIZE,
     STREAMJA_MAX_SIZE,
-    STREAMWO_MAX_SIZE,
 )
 
 
@@ -124,8 +122,7 @@ class BotClient:
         self,
         subreddit: str,
         reddit_mirror: str | None = None,
-        mixture_mirror: bool = False,
-        streamwo_mirror: bool = False,
+        streamgg_mirror: bool = False,
         before: str | None = None,
         limit: int | None = None,
         interval: int = 5,
@@ -204,11 +201,10 @@ class BotClient:
 
                 for post in reversed(subreddit_listing_posts):
                     if post["data"]["url"].startswith((
-                        "https://mixture.gg/v/",
                         "https://streamable.com/",
                         "https://streamff.com/v/",
+                        "https://streamgg.com/v/",
                         "https://streamja.com/",
-                        "https://streamwo.com/file/",
                     )):
                         res = self.__reddit_client.comments(
                             post["data"]["id"],
@@ -241,8 +237,7 @@ class BotClient:
             self.__mirror_for_posts(
                 highlight_posts,
                 reddit_mirror=reddit_mirror,
-                mixture_mirror=mixture_mirror,
-                streamwo_mirror=streamwo_mirror,
+                streamgg_mirror=streamgg_mirror,
                 max_processing_attempts=max_processing_attempts,
                 minimum_retry_interval=minimum_retry_interval,
             )
@@ -256,8 +251,7 @@ class BotClient:
         max_processing_attempts: int = 10,
         minimum_retry_interval: int = 5,
         reddit_mirror: str | None = None,
-        mixture_mirror: bool = False,
-        streamwo_mirror: bool = False,
+        streamgg_mirror: bool = False,
     ):
         post_queue = Queue()
 
@@ -270,110 +264,17 @@ class BotClient:
             vid_url: str = post["data"]["url"]
 
             if not vid_url.startswith((
-                "https://mixture.gg/v/",
                 "https://streamable.com/",
                 "https://streamff.com/v/",
+                "https://streamgg.com/v/",
                 "https://streamja.com/",
-                "https://streamwo.com/file/",
             )):
                 print(
                     f"Post {post['data']['name']} with unsupported video host!"
                 )
                 continue
 
-            if vid_url.startswith("https://mixture.gg/v/"):
-                link_id = vid_url.split("https://mixture.gg/v/")[1]
-                print(f"Processing {post['data']['name']} with Mixture " +
-                      f"Video {link_id}")
-
-                if not self.__vhp_client.mixture.is_video_available(link_id):
-                    print("Unable to get direct video link from Mixture " +
-                          f"video ID {link_id}. Video not available / " +
-                          "taken down!")
-                    continue
-
-                if post_data["attempts"] < max_processing_attempts:
-                    last_attempt: datetime
-
-                    if (
-                        last_attempt := post_data["last_attempt"]
-                    ) is not None and (
-                        datetime.now(tz=timezone.utc) - last_attempt
-                    ).seconds < minimum_retry_interval:
-                        print(f"Attempting Mixture Video {link_id} " +
-                              "mirror too quickly since last try! Must wait " +
-                              f"{minimum_retry_interval} seconds between " +
-                              "each attempt!")
-                        post_queue.put(post_data)
-                        continue
-
-                    if self.__vhp_client.mixture.is_video_processing(link_id):
-                        post_data["last_attempt"] = \
-                            datetime.now(tz=timezone.utc)
-                        print(f"Mixture Video {link_id} still " +
-                              "being processed, trying later!")
-                        post_data["attempts"] += 1
-                        post_queue.put(post_data)
-                        continue
-
-                else:
-                    print(f"Mixture Video {link_id} still " +
-                          "being processed! Max attempts reached, " +
-                          "ignoring video!")
-                    continue
-
-                media_data = \
-                    self.__vhp_client.mixture.get_video_content(link_id)
-
-                if media_data.getbuffer().nbytes <= JUSTSTREAMLIVE_MAX_SIZE:
-                    jsl_mirror = self.__vhp_client.juststreamlive.mirror_video(
-                        MixtureVideo(link_id=link_id),
-                    )
-
-                if (
-                    mixture_mirror
-                    and media_data.getbuffer().nbytes <= MIXTURE_MAX_SIZE
-                ):
-                    mix_mirror = self.__vhp_client.mixture.upload_video(
-                        media_data, "Mirror.mp4",
-                    )
-
-                if media_data.getbuffer().nbytes <= STREAMABLE_MAX_SIZE:
-                    sab_mirror = self.__vhp_client.streamable.mirror_video(
-                        MixtureVideo(link_id=link_id),
-                        title=post["data"]["title"],
-                    )
-
-                if media_data.getbuffer().nbytes <= STREAMFF_MAX_SIZE:
-                    sff_mirror = self.__vhp_client.streamff.upload_video(
-                        media_data, "Mirror.mp4",
-                    )
-
-                if media_data.getbuffer().nbytes <= STREAMJA_MAX_SIZE:
-                    sja_mirror = self.__vhp_client.streamja.upload_video(
-                        media_data, "Mirror.mp4",
-                    )
-
-                if (
-                    streamwo_mirror
-                    and media_data.getbuffer().nbytes <= STREAMWO_MAX_SIZE
-                ):
-                    swo_mirror = self.__vhp_client.streamwo.upload_video(
-                        media_data, "Mirror.mp4",
-                    )
-
-                if (
-                    reddit_mirror
-                    and media_data.getbuffer().nbytes <= REDDIT_MAX_SIZE
-                ):
-                    red_url = self.__reddit_client.submit_video(
-                        post["data"]["title"],
-                        media_data,
-                        "Mirror.mp4",
-                        subreddit=reddit_mirror,
-                    )[1]
-
-            elif vid_url.startswith("https://streamable.com/"):
+            if vid_url.startswith("https://streamable.com/"):
                 shortcode = vid_url.split("https://streamable.com/")[1]
                 print(f"Processing {post['data']['name']} with Streamable " +
                       f"Video {shortcode}")
@@ -426,14 +327,6 @@ class BotClient:
                         StreamableVideo(shortcode=shortcode),
                     )
 
-                if (
-                    mixture_mirror
-                    and media_data.getbuffer().nbytes <= MIXTURE_MAX_SIZE
-                ):
-                    mix_mirror = self.__vhp_client.mixture.upload_video(
-                        media_data, "Mirror.mp4",
-                    )
-
                 if media_data.getbuffer().nbytes <= STREAMABLE_MAX_SIZE:
                     sab_mirror = self.__vhp_client.streamable.mirror_video(
                         StreamableVideo(shortcode=shortcode),
@@ -445,16 +338,16 @@ class BotClient:
                         media_data, "Mirror.mp4",
                     )
 
-                if media_data.getbuffer().nbytes <= STREAMFF_MAX_SIZE:
-                    sff_mirror = self.__vhp_client.streamff.upload_video(
+                if (
+                    streamgg_mirror
+                    and media_data.getbuffer().nbytes <= STREAMGG_MAX_SIZE
+                ):
+                    sgg_mirror = self.__vhp_client.streamgg.upload_video(
                         media_data, "Mirror.mp4",
                     )
 
-                if (
-                    streamwo_mirror
-                    and media_data.getbuffer().nbytes <= STREAMWO_MAX_SIZE
-                ):
-                    swo_mirror = self.__vhp_client.streamwo.upload_video(
+                if media_data.getbuffer().nbytes <= STREAMFF_MAX_SIZE:
+                    sff_mirror = self.__vhp_client.streamff.upload_video(
                         media_data, "Mirror.mp4",
                     )
 
@@ -526,14 +419,6 @@ class BotClient:
                         StreamjaVideo(short_id=short_id),
                     )
 
-                if (
-                    mixture_mirror
-                    and media_data.getbuffer().nbytes <= MIXTURE_MAX_SIZE
-                ):
-                    mix_mirror = self.__vhp_client.mixture.upload_video(
-                        media_data, "Mirror.mp4",
-                    )
-
                 if media_data.getbuffer().nbytes <= STREAMABLE_MAX_SIZE:
                     sab_mirror = self.__vhp_client.streamable.mirror_video(
                         StreamjaVideo(short_id=short_id),
@@ -545,16 +430,100 @@ class BotClient:
                         media_data, "Mirror.mp4",
                     )
 
+                if (
+                    streamgg_mirror
+                    and media_data.getbuffer().nbytes <= STREAMGG_MAX_SIZE
+                ):
+                    sgg_mirror = self.__vhp_client.streamgg.upload_video(
+                        media_data, "Mirror.mp4",
+                    )
+
                 if media_data.getbuffer().nbytes <= STREAMJA_MAX_SIZE:
                     sja_mirror = self.__vhp_client.streamja.upload_video(
                         media_data, "Mirror.mp4",
                     )
 
                 if (
-                    streamwo_mirror
-                    and media_data.getbuffer().nbytes <= STREAMWO_MAX_SIZE
+                    reddit_mirror
+                    and media_data.getbuffer().nbytes <= REDDIT_MAX_SIZE
                 ):
-                    swo_mirror = self.__vhp_client.streamwo.upload_video(
+                    red_url = self.__reddit_client.submit_video(
+                        post["data"]["title"],
+                        media_data,
+                        "Mirror.mp4",
+                        subreddit=reddit_mirror,
+                    )[1]
+
+            elif vid_url.startswith("https://streamgg.com/v/"):
+                link_id = vid_url.split("https://streamgg.com/v/")[1]
+                print(f"Processing {post['data']['name']} with Streamgg " +
+                      f"Video {link_id}")
+
+                if not self.__vhp_client.streamgg.is_video_available(link_id):
+                    print("Unable to get direct video link from Streamgg " +
+                          f"video ID {link_id}. Video not available / " +
+                          "taken down!")
+                    continue
+
+                if post_data["attempts"] < max_processing_attempts:
+                    last_attempt: datetime
+
+                    if (
+                        last_attempt := post_data["last_attempt"]
+                    ) is not None and (
+                        datetime.now(tz=timezone.utc) - last_attempt
+                    ).seconds < minimum_retry_interval:
+                        print(f"Attempting Streamgg Video {link_id} " +
+                              "mirror too quickly since last try! Must wait " +
+                              f"{minimum_retry_interval} seconds between " +
+                              "each attempt!")
+                        post_queue.put(post_data)
+                        continue
+
+                    if self.__vhp_client.streamgg.is_video_processing(link_id):
+                        post_data["last_attempt"] = \
+                            datetime.now(tz=timezone.utc)
+                        print(f"Streamgg Video {link_id} still " +
+                              "being processed, trying later!")
+                        post_data["attempts"] += 1
+                        post_queue.put(post_data)
+                        continue
+
+                else:
+                    print(f"Streamgg Video {link_id} still " +
+                          "being processed! Max attempts reached, " +
+                          "ignoring video!")
+                    continue
+
+                media_data = \
+                    self.__vhp_client.streamgg.get_video_content(link_id)
+
+                if media_data.getbuffer().nbytes <= JUSTSTREAMLIVE_MAX_SIZE:
+                    jsl_mirror = self.__vhp_client.juststreamlive.mirror_video(
+                        StreamggVideo(link_id=link_id),
+                    )
+
+                if media_data.getbuffer().nbytes <= STREAMABLE_MAX_SIZE:
+                    sab_mirror = self.__vhp_client.streamable.mirror_video(
+                        StreamggVideo(link_id=link_id),
+                        title=post["data"]["title"],
+                    )
+
+                if media_data.getbuffer().nbytes <= STREAMFF_MAX_SIZE:
+                    sff_mirror = self.__vhp_client.streamff.upload_video(
+                        media_data, "Mirror.mp4",
+                    )
+
+                if (
+                    streamgg_mirror
+                    and media_data.getbuffer().nbytes <= STREAMGG_MAX_SIZE
+                ):
+                    sgg_mirror = self.__vhp_client.streamgg.upload_video(
+                        media_data, "Mirror.mp4",
+                    )
+
+                if media_data.getbuffer().nbytes <= STREAMJA_MAX_SIZE:
+                    sja_mirror = self.__vhp_client.streamja.upload_video(
                         media_data, "Mirror.mp4",
                     )
 
@@ -583,15 +552,6 @@ class BotClient:
                         "Mirror.mp4",
                     )
 
-                if (
-                    mixture_mirror
-                    and media_data.getbuffer().nbytes <= MIXTURE_MAX_SIZE
-                ):
-                    mix_mirror = self.__vhp_client.mixture.upload_video(
-                        media_data,
-                        "Mirror.mp4",
-                    )
-
                 if media_data.getbuffer().nbytes <= STREAMABLE_MAX_SIZE:
                     sab_mirror = self.__vhp_client.streamable.mirror_video(
                         StreamffVideo(id=streamff_id),
@@ -604,111 +564,19 @@ class BotClient:
                         "Mirror.mp4",
                     )
 
+                if (
+                    streamgg_mirror
+                    and media_data.getbuffer().nbytes <= STREAMGG_MAX_SIZE
+                ):
+                    sgg_mirror = self.__vhp_client.streamgg.upload_video(
+                        media_data,
+                        "Mirror.mp4",
+                    )
+
                 if media_data.getbuffer().nbytes <= STREAMJA_MAX_SIZE:
                     sja_mirror = self.__vhp_client.streamja.upload_video(
                         media_data,
                         "Mirror.mp4",
-                    )
-
-                if (
-                    streamwo_mirror
-                    and media_data.getbuffer().nbytes <= STREAMWO_MAX_SIZE
-                ):
-                    mix_mirror = self.__vhp_client.streamwo.upload_video(
-                        media_data,
-                        "Mirror.mp4",
-                    )
-
-                if (
-                    reddit_mirror
-                    and media_data.getbuffer().nbytes <= REDDIT_MAX_SIZE
-                ):
-                    red_url = self.__reddit_client.submit_video(
-                        post["data"]["title"],
-                        media_data,
-                        "Mirror.mp4",
-                        subreddit=reddit_mirror,
-                    )[1]
-
-            elif vid_url.startswith("https://streamwo.com/file/"):
-                link_id = vid_url.split("https://streamwo.com/file/")[1]
-                print(f"Processing {post['data']['name']} with Streamwo " +
-                      f"Video {link_id}")
-
-                if not self.__vhp_client.streamwo.is_video_available(link_id):
-                    print("Unable to get direct video link from Streamwo " +
-                          f"video ID {link_id}. Video not available / " +
-                          "taken down!")
-                    continue
-
-                if post_data["attempts"] < max_processing_attempts:
-                    last_attempt: datetime
-
-                    if (
-                        last_attempt := post_data["last_attempt"]
-                    ) is not None and (
-                        datetime.now(tz=timezone.utc) - last_attempt
-                    ).seconds < minimum_retry_interval:
-                        print(f"Attempting Streamwo Video {link_id} " +
-                              "mirror too quickly since last try! Must wait " +
-                              f"{minimum_retry_interval} seconds between " +
-                              "each attempt!")
-                        post_queue.put(post_data)
-                        continue
-
-                    if self.__vhp_client.streamwo.is_video_processing(link_id):
-                        post_data["last_attempt"] = \
-                            datetime.now(tz=timezone.utc)
-                        print(f"Streamwo Video {link_id} still " +
-                              "being processed, trying later!")
-                        post_data["attempts"] += 1
-                        post_queue.put(post_data)
-                        continue
-
-                else:
-                    print(f"Streamwo Video {link_id} still " +
-                          "being processed! Max attempts reached, " +
-                          "ignoring video!")
-                    continue
-
-                media_data = \
-                    self.__vhp_client.streamwo.get_video_content(link_id)
-
-                if media_data.getbuffer().nbytes <= JUSTSTREAMLIVE_MAX_SIZE:
-                    jsl_mirror = self.__vhp_client.juststreamlive.mirror_video(
-                        StreamwoVideo(link_id=link_id),
-                    )
-
-                if (
-                    mixture_mirror
-                    and media_data.getbuffer().nbytes <= MIXTURE_MAX_SIZE
-                ):
-                    mix_mirror = self.__vhp_client.mixture.upload_video(
-                        media_data, "Mirror.mp4",
-                    )
-
-                if media_data.getbuffer().nbytes <= STREAMABLE_MAX_SIZE:
-                    sab_mirror = self.__vhp_client.streamable.mirror_video(
-                        MixtureVideo(link_id=link_id),
-                        title=post["data"]["title"],
-                    )
-
-                if media_data.getbuffer().nbytes <= STREAMFF_MAX_SIZE:
-                    sff_mirror = self.__vhp_client.streamff.upload_video(
-                        media_data, "Mirror.mp4",
-                    )
-
-                if media_data.getbuffer().nbytes <= STREAMJA_MAX_SIZE:
-                    sja_mirror = self.__vhp_client.streamja.upload_video(
-                        media_data, "Mirror.mp4",
-                    )
-
-                if (
-                    streamwo_mirror
-                    and media_data.getbuffer().nbytes <= STREAMWO_MAX_SIZE
-                ):
-                    swo_mirror = self.__vhp_client.streamwo.upload_video(
-                        media_data, "Mirror.mp4",
                     )
 
                 if (
@@ -764,6 +632,18 @@ class BotClient:
                 mirrors.append("* Streamja: Failed as video file too large " +
                                "for host")
 
+            if streamgg_mirror:
+                if media_data.getbuffer().nbytes <= STREAMGG_MAX_SIZE:
+                    print("Streamgg mirror created for " +
+                          f"{post['data']['name']}!")
+                    mirrors.append(f"* [Streamgg]({str(sgg_mirror.url)})")
+
+                else:
+                    print("Streamgg mirror failed for " +
+                          f"{post['data']['name']} as it is too large!")
+                    mirrors.append("* Streamgg: Failed as video file too " +
+                                   "large for host")
+
             if media_data.getbuffer().nbytes <= STREAMFF_MAX_SIZE:
                 print(f"Streamff mirror created for  {post['data']['name']}!")
                 mirrors.append(f"* [Streamff]({str(sff_mirror.url)})")
@@ -773,30 +653,6 @@ class BotClient:
                       "as it is too large!")
                 mirrors.append("* Streamff: Failed as video file too large " +
                                "for host")
-
-            if mixture_mirror:
-                if media_data.getbuffer().nbytes <= MIXTURE_MAX_SIZE:
-                    print("Mixture mirror created for " +
-                          f"{post['data']['name']}!")
-                    mirrors.append(f"* [Mixture]({str(mix_mirror.url)})")
-
-                else:
-                    print("Mixture mirror failed for " +
-                          f"{post['data']['name']} as it is too large!")
-                    mirrors.append("* Mixture: Failed as video file too " +
-                                   "large for host")
-
-            if streamwo_mirror:
-                if media_data.getbuffer().nbytes <= STREAMWO_MAX_SIZE:
-                    print("Streamwo mirror created for " +
-                          f"{post['data']['name']}!")
-                    mirrors.append(f"* [Streamwo]({str(swo_mirror.url)})")
-
-                else:
-                    print("Streamwo mirror failed for " +
-                          f"{post['data']['name']} as it is too large!")
-                    mirrors.append("* Streamwo: Failed as video file too " +
-                                   "large for host")
 
             if reddit_mirror:
                 if media_data.getbuffer().nbytes <= REDDIT_MAX_SIZE:
@@ -862,8 +718,7 @@ class BotClient:
         self,
         post_names: List[str],
         subreddit: str | None = None,
-        mixture_mirror: bool = False,
-        streamwo_mirror: bool = False,
+        streamgg_mirror: bool = False,
         reddit_mirror: str | None = None,
         skip_missing_automod: bool = False,
         max_processing_attempts: int = 10,
@@ -919,8 +774,7 @@ class BotClient:
             self.__mirror_for_posts(
                 to_mirror_list,
                 reddit_mirror=reddit_mirror,
-                mixture_mirror=mixture_mirror,
-                streamwo_mirror=streamwo_mirror,
+                streamgg_mirror=streamgg_mirror,
                 max_processing_attempts=max_processing_attempts,
                 minimum_retry_interval=minimum_retry_interval,
             )
@@ -933,25 +787,6 @@ class BotClient:
         flair_id: str | None = None,
     ):
         video = self.__vhp_client.juststreamlive.upload_video(
-            media_path.open(mode="rb"),
-            media_path.name,
-        )
-
-        return self.__reddit_client.submit_url(
-            post_title,
-            str(video.url),
-            subreddit=subreddit,
-            flair_id=flair_id,
-        )
-
-    def post_mixture(
-        self,
-        media_path: Path,
-        post_title: str,
-        subreddit: str | None = None,
-        flair_id: str | None = None,
-    ):
-        video = self.__vhp_client.mixture.upload_video(
             media_path.open(mode="rb"),
             media_path.name,
         )
@@ -1020,14 +855,14 @@ class BotClient:
             flair_id=flair_id,
         )
 
-    def post_streamja(
+    def post_streamgg(
         self,
         media_path: Path,
         post_title: str,
         subreddit: str | None = None,
         flair_id: str | None = None,
     ):
-        video = self.__vhp_client.streamja.upload_video(
+        video = self.__vhp_client.streamgg.upload_video(
             media_path.open(mode="rb"),
             media_path.name,
         )
@@ -1039,14 +874,14 @@ class BotClient:
             flair_id=flair_id,
         )
 
-    def post_streamwo(
+    def post_streamja(
         self,
         media_path: Path,
         post_title: str,
         subreddit: str | None = None,
         flair_id: str | None = None,
     ):
-        video = self.__vhp_client.streamwo.upload_video(
+        video = self.__vhp_client.streamja.upload_video(
             media_path.open(mode="rb"),
             media_path.name,
         )

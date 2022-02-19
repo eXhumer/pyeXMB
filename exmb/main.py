@@ -58,8 +58,7 @@ def __parse_args(args: Namespace):
             ).run_bot_for_subreddit(
                 args.subreddit if args.subreddit else "formula1",
                 reddit_mirror=args.reddit_mirror,
-                mixture_mirror=args.mixture_mirror,
-                streamwo_mirror=args.streamwo_mirror,
+                streamgg_mirror=args.streamgg_mirror,
                 before=args.before,
                 limit=args.limit,
                 skip_missing_automod=args.skip_missing_automod,
@@ -80,8 +79,7 @@ def __parse_args(args: Namespace):
             ).mirror_for_posts_by_names(
                 args.post_names,
                 subreddit=args.subreddit,
-                mixture_mirror=args.mixture_mirror,
-                streamwo_mirror=args.streamwo_mirror,
+                streamgg_mirror=args.streamgg_mirror,
                 reddit_mirror=args.reddit_mirror,
                 skip_missing_automod=args.skip_missing_automod,
                 max_processing_attempts=10,
@@ -173,11 +171,11 @@ def __parse_args(args: Namespace):
                 f"No authorization alias with key {args.alias} found!",
             )
 
-    elif args.action == "post-streamja":
+    elif args.action == "post-streamgg":
         if (__config_path__ / f"{args.alias}.json").is_file():
             BotClient.reddit_load_existing_user(
                 args.alias
-            ).post_streamja(
+            ).post_streamgg(
                 args.media_path,
                 args.title,
                 subreddit=args.subreddit,
@@ -189,11 +187,11 @@ def __parse_args(args: Namespace):
                 f"No authorization alias with key {args.alias} found!",
             )
 
-    elif args.action == "post-streamwo":
+    elif args.action == "post-streamja":
         if (__config_path__ / f"{args.alias}.json").is_file():
             BotClient.reddit_load_existing_user(
                 args.alias
-            ).post_streamwo(
+            ).post_streamja(
                 args.media_path,
                 args.title,
                 subreddit=args.subreddit,
@@ -232,17 +230,14 @@ def console_main():
     run_parser.add_argument("--limit", type=int)
     run_parser.add_argument("--subreddit")
     run_parser.add_argument("--reddit-mirror")
-    run_parser.add_argument("--mixture-mirror", action="store_true")
-    run_parser.add_argument("--streamwo-mirror", action="store_true")
+    run_parser.add_argument("--streamgg-mirror", action="store_true")
     run_parser.add_argument("--skip-missing-automod", action="store_true")
     mirror_for_post_parser = subparsers.add_parser("mirror-for-post")
     mirror_for_post_parser.add_argument("alias")
     mirror_for_post_parser.add_argument("post_names", metavar="post_name",
                                         nargs="+")
     mirror_for_post_parser.add_argument("--reddit-mirror")
-    mirror_for_post_parser.add_argument("--mixture-mirror",
-                                        action="store_true")
-    mirror_for_post_parser.add_argument("--streamwo-mirror",
+    mirror_for_post_parser.add_argument("--streamgg-mirror",
                                         action="store_true")
     mirror_for_post_parser.add_argument("--subreddit")
     mirror_for_post_parser.add_argument("--skip-missing-automod",
@@ -259,12 +254,6 @@ def console_main():
     post_reddit_parser.add_argument("title")
     post_reddit_parser.add_argument("--subreddit")
     post_reddit_parser.add_argument("--flair-id")
-    post_mixture_parser = subparsers.add_parser("post-mixture")
-    post_mixture_parser.add_argument("alias")
-    post_mixture_parser.add_argument("media_path", type=Path)
-    post_mixture_parser.add_argument("title")
-    post_mixture_parser.add_argument("--subreddit")
-    post_mixture_parser.add_argument("--flair-id")
     post_streamable_parser = subparsers.add_parser("post-streamable")
     post_streamable_parser.add_argument("alias")
     post_streamable_parser.add_argument("media_path", type=Path)
@@ -277,17 +266,17 @@ def console_main():
     post_streamff_parser.add_argument("title")
     post_streamff_parser.add_argument("--subreddit")
     post_streamff_parser.add_argument("--flair-id")
+    post_streamgg_parser = subparsers.add_parser("post-streamgg")
+    post_streamgg_parser.add_argument("alias")
+    post_streamgg_parser.add_argument("media_path", type=Path)
+    post_streamgg_parser.add_argument("title")
+    post_streamgg_parser.add_argument("--subreddit")
+    post_streamgg_parser.add_argument("--flair-id")
     post_streamja_parser = subparsers.add_parser("post-streamja")
     post_streamja_parser.add_argument("alias")
     post_streamja_parser.add_argument("media_path", type=Path)
     post_streamja_parser.add_argument("title")
     post_streamja_parser.add_argument("--subreddit")
     post_streamja_parser.add_argument("--flair-id")
-    post_streamwo_parser = subparsers.add_parser("post-streamwo")
-    post_streamwo_parser.add_argument("alias")
-    post_streamwo_parser.add_argument("media_path", type=Path)
-    post_streamwo_parser.add_argument("title")
-    post_streamwo_parser.add_argument("--subreddit")
-    post_streamwo_parser.add_argument("--flair-id")
 
     __parse_args(parser.parse_args())
