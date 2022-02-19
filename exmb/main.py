@@ -107,22 +107,6 @@ def __parse_args(args: Namespace):
                 f"No authorization alias with key {args.alias} found!",
             )
 
-    elif args.action == "post-mixture":
-        if (__config_path__ / f"{args.alias}.json").is_file():
-            BotClient.reddit_load_existing_user(
-                args.alias
-            ).post_mixture(
-                args.media_path,
-                args.title,
-                subreddit=args.subreddit,
-                flair_id=args.flair_id,
-            )
-
-        else:
-            raise KeyError(
-                f"No authorization alias with key {args.alias} found!",
-            )
-
     elif args.action == "post-reddit":
         if (__config_path__ / f"{args.alias}.json").is_file():
             BotClient.reddit_load_existing_user(
