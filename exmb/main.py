@@ -79,7 +79,8 @@ def __parse_args(args: Namespace):
             ).mirror_for_posts_by_names(
                 args.post_names,
                 subreddit=args.subreddit,
-                streamgg_mirror=args.streamgg_mirror,
+                juststreamlive_mirror=args.juststreamlive_mirror,
+                streamff_mirror=args.streamff_mirror,
                 reddit_mirror=args.reddit_mirror,
                 skip_missing_automod=args.skip_missing_automod,
                 max_processing_attempts=10,
@@ -155,22 +156,6 @@ def __parse_args(args: Namespace):
                 f"No authorization alias with key {args.alias} found!",
             )
 
-    elif args.action == "post-streamgg":
-        if (__config_path__ / f"{args.alias}.json").is_file():
-            BotClient.reddit_load_existing_user(
-                args.alias
-            ).post_streamgg(
-                args.media_path,
-                args.title,
-                subreddit=args.subreddit,
-                flair_id=args.flair_id,
-            )
-
-        else:
-            raise KeyError(
-                f"No authorization alias with key {args.alias} found!",
-            )
-
     elif args.action == "post-streamja":
         if (__config_path__ / f"{args.alias}.json").is_file():
             BotClient.reddit_load_existing_user(
@@ -214,14 +199,17 @@ def console_main():
     run_parser.add_argument("--limit", type=int)
     run_parser.add_argument("--subreddit")
     run_parser.add_argument("--reddit-mirror")
-    run_parser.add_argument("--streamgg-mirror", action="store_true")
+    run_parser.add_argument("--juststreamlive-mirror", action="store_true")
+    run_parser.add_argument("--streamff-mirror", action="store_true")
     run_parser.add_argument("--skip-missing-automod", action="store_true")
     mirror_for_post_parser = subparsers.add_parser("mirror-for-post")
     mirror_for_post_parser.add_argument("alias")
     mirror_for_post_parser.add_argument("post_names", metavar="post_name",
                                         nargs="+")
     mirror_for_post_parser.add_argument("--reddit-mirror")
-    mirror_for_post_parser.add_argument("--streamgg-mirror",
+    mirror_for_post_parser.add_argument("--juststreamlive-mirror",
+                                        action="store_true")
+    mirror_for_post_parser.add_argument("--streamff-mirror",
                                         action="store_true")
     mirror_for_post_parser.add_argument("--subreddit")
     mirror_for_post_parser.add_argument("--skip-missing-automod",
@@ -250,12 +238,6 @@ def console_main():
     post_streamff_parser.add_argument("title")
     post_streamff_parser.add_argument("--subreddit")
     post_streamff_parser.add_argument("--flair-id")
-    post_streamgg_parser = subparsers.add_parser("post-streamgg")
-    post_streamgg_parser.add_argument("alias")
-    post_streamgg_parser.add_argument("media_path", type=Path)
-    post_streamgg_parser.add_argument("title")
-    post_streamgg_parser.add_argument("--subreddit")
-    post_streamgg_parser.add_argument("--flair-id")
     post_streamja_parser = subparsers.add_parser("post-streamja")
     post_streamja_parser.add_argument("alias")
     post_streamja_parser.add_argument("media_path", type=Path)

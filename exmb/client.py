@@ -10,7 +10,6 @@ from exvhp import (
     Client as VHPClient,
     StreamableVideo,
     StreamffVideo,
-    StreamggVideo,
     StreamjaVideo,
 )
 from requests import Session
@@ -22,7 +21,6 @@ from . import (
     REDDIT_MAX_SIZE,
     STREAMABLE_MAX_SIZE,
     STREAMFF_MAX_SIZE,
-    STREAMGG_MAX_SIZE,
     STREAMJA_MAX_SIZE,
 )
 
@@ -36,18 +34,21 @@ class BotClient:
         self.__reddit_client = exrc
         self.__vhp_client = exvhp
 
-    def __post_deleted(self, subreddit: str, post_id: str):
+    def __reddit_post_deleted(self, subreddit: str, post_id: str):
         res = self.__reddit_client.info(
             ids=[post_id],
             subreddit=subreddit,
         )
         res.raise_for_status()
 
+        if res.json()["data"]["dist"] == 0:
+            raise ValueError(f"Post {post_id} doesn't exist!")
+
         latest_post = res.json()["data"]["children"][0]
         post_removal_status = latest_post["data"]["removed_by_category"]
         return post_removal_status is not None
 
-    def __get_latest_post_name(self, subreddit: str):
+    def __reddit_get_latest_post_name(self, subreddit: str):
         res = self.__reddit_client.posts(
             subreddit=subreddit,
             sort="new",
@@ -122,7 +123,8 @@ class BotClient:
         self,
         subreddit: str,
         reddit_mirror: str | None = None,
-        streamgg_mirror: bool = False,
+        juststreamlive_mirror: bool = False,
+        streamff_mirror: bool = False,
         before: str | None = None,
         limit: int | None = None,
         interval: int = 5,
@@ -133,7 +135,7 @@ class BotClient:
         if not before:
             print("before not specified! Attempting to retrieve latest " +
                   "post name")
-            before = self.__get_latest_post_name(subreddit)
+            before = self.__reddit_get_latest_post_name(subreddit)
             print(f"Latest post name: {before}")
 
         mirror_postname_stack = deque()
@@ -141,7 +143,7 @@ class BotClient:
         while True:
             print(f"Checking if latest post {before} has been removed/deleted")
 
-            if self.__post_deleted(subreddit, before):
+            if self.__reddit_post_deleted(subreddit, before):
                 print(f"Post {before} was removed/deleted!")
                 print("Attempting to use last non removed/deleted highlight " +
                       "post!")
@@ -151,7 +153,7 @@ class BotClient:
                         while True:
                             last_mirror_postname = mirror_postname_stack.pop()
 
-                            if self.__post_deleted(
+                            if self.__reddit_post_deleted(
                                 subreddit,
                                 last_mirror_postname,
                             ):
@@ -167,12 +169,12 @@ class BotClient:
 
                     except IndexError:
                         print("All mirrored posts were deleted/removed!")
-                        before = self.__get_latest_post_name(subreddit)
+                        before = self.__reddit_get_latest_post_name(subreddit)
                         print(f"Setting latest post as {before}")
 
                 else:
                     print("No previous mirrored highlight post found!")
-                    before = self.__get_latest_post_name(subreddit)
+                    before = self.__reddit_get_latest_post_name(subreddit)
                     print(f"Setting latest post as {before}")
 
             print(f"Retrieving all posts before post name {before}")
@@ -203,7 +205,6 @@ class BotClient:
                     if post["data"]["url"].startswith((
                         "https://streamable.com/",
                         "https://streamff.com/v/",
-                        "https://streamgg.com/v/",
                         "https://streamja.com/",
                     )):
                         res = self.__reddit_client.comments(
@@ -237,7 +238,8 @@ class BotClient:
             self.__mirror_for_posts(
                 highlight_posts,
                 reddit_mirror=reddit_mirror,
-                streamgg_mirror=streamgg_mirror,
+                juststreamlive_mirror=juststreamlive_mirror,
+                streamff_mirror=streamff_mirror,
                 max_processing_attempts=max_processing_attempts,
                 minimum_retry_interval=minimum_retry_interval,
             )
@@ -251,7 +253,8 @@ class BotClient:
         max_processing_attempts: int = 10,
         minimum_retry_interval: int = 5,
         reddit_mirror: str | None = None,
-        streamgg_mirror: bool = False,
+        juststreamlive_mirror: bool = False,
+        streamff_mirror: bool = False,
     ):
         post_queue = Queue()
 
@@ -266,7 +269,6 @@ class BotClient:
             if not vid_url.startswith((
                 "https://streamable.com/",
                 "https://streamff.com/v/",
-                "https://streamgg.com/v/",
                 "https://streamja.com/",
             )):
                 print(
@@ -322,9 +324,12 @@ class BotClient:
                 media_data = \
                     self.__vhp_client.streamable.get_video_content(shortcode)
 
-                if media_data.getbuffer().nbytes <= JUSTSTREAMLIVE_MAX_SIZE:
-                    jsl_mirror = self.__vhp_client.juststreamlive.mirror_video(
-                        StreamableVideo(shortcode=shortcode),
+                if (
+                    juststreamlive_mirror and
+                    media_data.getbuffer().nbytes <= JUSTSTREAMLIVE_MAX_SIZE
+                ):
+                    jsl_mirror = self.__vhp_client.juststreamlive.upload_video(
+                        media_data, "Mirror.mp4",
                     )
 
                 if media_data.getbuffer().nbytes <= STREAMABLE_MAX_SIZE:
@@ -339,14 +344,9 @@ class BotClient:
                     )
 
                 if (
-                    streamgg_mirror
-                    and media_data.getbuffer().nbytes <= STREAMGG_MAX_SIZE
+                    streamff_mirror and
+                    media_data.getbuffer().nbytes <= STREAMFF_MAX_SIZE
                 ):
-                    sgg_mirror = self.__vhp_client.streamgg.upload_video(
-                        media_data, "Mirror.mp4",
-                    )
-
-                if media_data.getbuffer().nbytes <= STREAMFF_MAX_SIZE:
                     sff_mirror = self.__vhp_client.streamff.upload_video(
                         media_data, "Mirror.mp4",
                     )
@@ -414,9 +414,12 @@ class BotClient:
                     short_id
                 )
 
-                if media_data.getbuffer().nbytes <= JUSTSTREAMLIVE_MAX_SIZE:
-                    jsl_mirror = self.__vhp_client.juststreamlive.mirror_video(
-                        StreamjaVideo(short_id=short_id),
+                if (
+                    juststreamlive_mirror and
+                    media_data.getbuffer().nbytes <= JUSTSTREAMLIVE_MAX_SIZE
+                ):
+                    jsl_mirror = self.__vhp_client.juststreamlive.upload_video(
+                        media_data, "Mirror.mp4",
                     )
 
                 if media_data.getbuffer().nbytes <= STREAMABLE_MAX_SIZE:
@@ -425,100 +428,11 @@ class BotClient:
                         title=post["data"]["title"],
                     )
 
-                if media_data.getbuffer().nbytes <= STREAMFF_MAX_SIZE:
+                if (
+                    streamff_mirror and
+                    media_data.getbuffer().nbytes <= STREAMFF_MAX_SIZE
+                ):
                     sff_mirror = self.__vhp_client.streamff.upload_video(
-                        media_data, "Mirror.mp4",
-                    )
-
-                if (
-                    streamgg_mirror
-                    and media_data.getbuffer().nbytes <= STREAMGG_MAX_SIZE
-                ):
-                    sgg_mirror = self.__vhp_client.streamgg.upload_video(
-                        media_data, "Mirror.mp4",
-                    )
-
-                if media_data.getbuffer().nbytes <= STREAMJA_MAX_SIZE:
-                    sja_mirror = self.__vhp_client.streamja.upload_video(
-                        media_data, "Mirror.mp4",
-                    )
-
-                if (
-                    reddit_mirror
-                    and media_data.getbuffer().nbytes <= REDDIT_MAX_SIZE
-                ):
-                    red_url = self.__reddit_client.submit_video(
-                        post["data"]["title"],
-                        media_data,
-                        "Mirror.mp4",
-                        subreddit=reddit_mirror,
-                    )[1]
-
-            elif vid_url.startswith("https://streamgg.com/v/"):
-                link_id = vid_url.split("https://streamgg.com/v/")[1]
-                print(f"Processing {post['data']['name']} with Streamgg " +
-                      f"Video {link_id}")
-
-                if not self.__vhp_client.streamgg.is_video_available(link_id):
-                    print("Unable to get direct video link from Streamgg " +
-                          f"video ID {link_id}. Video not available / " +
-                          "taken down!")
-                    continue
-
-                if post_data["attempts"] < max_processing_attempts:
-                    last_attempt: datetime
-
-                    if (
-                        last_attempt := post_data["last_attempt"]
-                    ) is not None and (
-                        datetime.now(tz=timezone.utc) - last_attempt
-                    ).seconds < minimum_retry_interval:
-                        print(f"Attempting Streamgg Video {link_id} " +
-                              "mirror too quickly since last try! Must wait " +
-                              f"{minimum_retry_interval} seconds between " +
-                              "each attempt!")
-                        post_queue.put(post_data)
-                        continue
-
-                    if self.__vhp_client.streamgg.is_video_processing(link_id):
-                        post_data["last_attempt"] = \
-                            datetime.now(tz=timezone.utc)
-                        print(f"Streamgg Video {link_id} still " +
-                              "being processed, trying later!")
-                        post_data["attempts"] += 1
-                        post_queue.put(post_data)
-                        continue
-
-                else:
-                    print(f"Streamgg Video {link_id} still " +
-                          "being processed! Max attempts reached, " +
-                          "ignoring video!")
-                    continue
-
-                media_data = \
-                    self.__vhp_client.streamgg.get_video_content(link_id)
-
-                if media_data.getbuffer().nbytes <= JUSTSTREAMLIVE_MAX_SIZE:
-                    jsl_mirror = self.__vhp_client.juststreamlive.mirror_video(
-                        StreamggVideo(link_id=link_id),
-                    )
-
-                if media_data.getbuffer().nbytes <= STREAMABLE_MAX_SIZE:
-                    sab_mirror = self.__vhp_client.streamable.mirror_video(
-                        StreamggVideo(link_id=link_id),
-                        title=post["data"]["title"],
-                    )
-
-                if media_data.getbuffer().nbytes <= STREAMFF_MAX_SIZE:
-                    sff_mirror = self.__vhp_client.streamff.upload_video(
-                        media_data, "Mirror.mp4",
-                    )
-
-                if (
-                    streamgg_mirror
-                    and media_data.getbuffer().nbytes <= STREAMGG_MAX_SIZE
-                ):
-                    sgg_mirror = self.__vhp_client.streamgg.upload_video(
                         media_data, "Mirror.mp4",
                     )
 
@@ -546,7 +460,10 @@ class BotClient:
                 media_data = \
                     self.__vhp_client.streamff.get_video_content(streamff_id)
 
-                if media_data.getbuffer().nbytes <= JUSTSTREAMLIVE_MAX_SIZE:
+                if (
+                    juststreamlive_mirror and
+                    media_data.getbuffer().nbytes <= JUSTSTREAMLIVE_MAX_SIZE
+                ):
                     jsl_mirror = self.__vhp_client.juststreamlive.upload_video(
                         media_data,
                         "Mirror.mp4",
@@ -558,17 +475,11 @@ class BotClient:
                         title=post["data"]["title"],
                     )
 
-                if media_data.getbuffer().nbytes <= STREAMFF_MAX_SIZE:
-                    sff_mirror = self.__vhp_client.streamja.upload_video(
-                        media_data,
-                        "Mirror.mp4",
-                    )
-
                 if (
-                    streamgg_mirror
-                    and media_data.getbuffer().nbytes <= STREAMGG_MAX_SIZE
+                    streamff_mirror
+                    and media_data.getbuffer().nbytes <= STREAMFF_MAX_SIZE
                 ):
-                    sgg_mirror = self.__vhp_client.streamgg.upload_video(
+                    sff_mirror = self.__vhp_client.streamff.upload_video(
                         media_data,
                         "Mirror.mp4",
                     )
@@ -606,16 +517,19 @@ class BotClient:
                 mirrors.append("* Streamable: Failed as video file too " +
                                "large for host")
 
-            if media_data.getbuffer().nbytes <= JUSTSTREAMLIVE_MAX_SIZE:
-                print("JustStreamLive mirror created for " +
-                      f"{post['data']['name']}!")
-                mirrors.append(f"* [JustStreamLive]({str(jsl_mirror.url)})")
+            if juststreamlive_mirror:
+                if (media_data.getbuffer().nbytes <= JUSTSTREAMLIVE_MAX_SIZE):
+                    print("JustStreamLive mirror created for " +
+                          f"{post['data']['name']}!")
+                    mirrors.append(
+                        f"* [JustStreamLive]({str(jsl_mirror.url)})"
+                    )
 
-            else:
-                print("JustStreamLive mirror failed for " +
-                      f"{post['data']['name']} as it is too large!")
-                mirrors.append("* JustStreamLive: Failed as video file too " +
-                               "large for host")
+                else:
+                    print("JustStreamLive mirror failed for " +
+                          f"{post['data']['name']} as it is too large!")
+                    mirrors.append("* JustStreamLive: Failed as video file " +
+                                   "too large for host")
 
             if media_data.getbuffer().nbytes <= STREAMJA_MAX_SIZE:
                 print(f"Streamja mirror created for {post['data']['name']}!")
@@ -632,27 +546,17 @@ class BotClient:
                 mirrors.append("* Streamja: Failed as video file too large " +
                                "for host")
 
-            if streamgg_mirror:
-                if media_data.getbuffer().nbytes <= STREAMGG_MAX_SIZE:
-                    print("Streamgg mirror created for " +
-                          f"{post['data']['name']}!")
-                    mirrors.append(f"* [Streamgg]({str(sgg_mirror.url)})")
+            if streamff_mirror:
+                if media_data.getbuffer().nbytes <= STREAMFF_MAX_SIZE:
+                    print("Streamff mirror created for " +
+                          post["data"]["name"] + "!")
+                    mirrors.append(f"* [Streamff]({str(sff_mirror.url)})")
 
                 else:
-                    print("Streamgg mirror failed for " +
-                          f"{post['data']['name']} as it is too large!")
-                    mirrors.append("* Streamgg: Failed as video file too " +
+                    print("Streamff mirror failed for " +
+                          post["data"]["name"] + "as it is too large!")
+                    mirrors.append("* Streamff: Failed as video file too " +
                                    "large for host")
-
-            if media_data.getbuffer().nbytes <= STREAMFF_MAX_SIZE:
-                print(f"Streamff mirror created for  {post['data']['name']}!")
-                mirrors.append(f"* [Streamff]({str(sff_mirror.url)})")
-
-            else:
-                print(f"Streamff mirror failed for {post['data']['name']} " +
-                      "as it is too large!")
-                mirrors.append("* Streamff: Failed as video file too large " +
-                               "for host")
 
             if reddit_mirror:
                 if media_data.getbuffer().nbytes <= REDDIT_MAX_SIZE:
@@ -718,7 +622,8 @@ class BotClient:
         self,
         post_names: List[str],
         subreddit: str | None = None,
-        streamgg_mirror: bool = False,
+        juststreamlive_mirror: bool = False,
+        streamff_mirror: bool = False,
         reddit_mirror: str | None = None,
         skip_missing_automod: bool = False,
         max_processing_attempts: int = 10,
@@ -774,7 +679,8 @@ class BotClient:
             self.__mirror_for_posts(
                 to_mirror_list,
                 reddit_mirror=reddit_mirror,
-                streamgg_mirror=streamgg_mirror,
+                juststreamlive_mirror=juststreamlive_mirror,
+                streamff_mirror=streamff_mirror,
                 max_processing_attempts=max_processing_attempts,
                 minimum_retry_interval=minimum_retry_interval,
             )
@@ -844,25 +750,6 @@ class BotClient:
         flair_id: str | None = None,
     ):
         video = self.__vhp_client.streamff.upload_video(
-            media_path.open(mode="rb"),
-            media_path.name,
-        )
-
-        return self.__reddit_client.submit_url(
-            post_title,
-            str(video.url),
-            subreddit=subreddit,
-            flair_id=flair_id,
-        )
-
-    def post_streamgg(
-        self,
-        media_path: Path,
-        post_title: str,
-        subreddit: str | None = None,
-        flair_id: str | None = None,
-    ):
-        video = self.__vhp_client.streamgg.upload_video(
             media_path.open(mode="rb"),
             media_path.name,
         )
