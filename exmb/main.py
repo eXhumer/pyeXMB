@@ -58,7 +58,7 @@ def __parse_args(args: Namespace):
             ).run_bot_for_subreddit(
                 args.subreddit if args.subreddit else "formula1",
                 reddit_mirror=args.reddit_mirror,
-                streamgg_mirror=args.streamgg_mirror,
+                streamff_mirror=args.streamff_mirror,
                 before=args.before,
                 limit=args.limit,
                 skip_missing_automod=args.skip_missing_automod,
