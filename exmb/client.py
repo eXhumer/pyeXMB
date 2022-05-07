@@ -132,120 +132,124 @@ class BotClient:
         max_processing_attempts: int = 10,
         minimum_retry_interval: int = 5,
     ):
-        if not before:
-            print("before not specified! Attempting to retrieve latest " +
-                  "post name")
-            before = self.__reddit_get_latest_post_name(subreddit)
-            print(f"Latest post name: {before}")
+        try:
+            if not before:
+                print("before not specified! Attempting to retrieve latest " +
+                    "post name")
+                before = self.__reddit_get_latest_post_name(subreddit)
+                print(f"Latest post name: {before}")
 
-        mirror_postname_stack = deque()
+            mirror_postname_stack = deque()
 
-        while True:
-            print(f"Checking if latest post {before} has been removed/deleted")
+            while True:
+                print(f"Checking if latest post {before} has been removed/deleted")
 
-            if self.__reddit_post_deleted(subreddit, before):
-                print(f"Post {before} was removed/deleted!")
-                print("Attempting to use last non removed/deleted highlight " +
-                      "post!")
+                if self.__reddit_post_deleted(subreddit, before):
+                    print(f"Post {before} was removed/deleted!")
+                    print("Attempting to use last non removed/deleted highlight " +
+                        "post!")
 
-                if len(mirror_postname_stack):
-                    try:
-                        while True:
-                            last_mirror_postname = mirror_postname_stack.pop()
+                    if len(mirror_postname_stack):
+                        try:
+                            while True:
+                                last_mirror_postname = mirror_postname_stack.pop()
 
-                            if self.__reddit_post_deleted(
-                                subreddit,
-                                last_mirror_postname,
-                            ):
-                                continue
+                                if self.__reddit_post_deleted(
+                                    subreddit,
+                                    last_mirror_postname,
+                                ):
+                                    continue
 
-                            mirror_postname_stack.append(last_mirror_postname)
-                            print("Found non removed/deleted mirrored " +
-                                  "highlight post!")
-                            print("Setting latest post as " +
-                                  last_mirror_postname)
-                            before = last_mirror_postname
-                            break
+                                mirror_postname_stack.append(last_mirror_postname)
+                                print("Found non removed/deleted mirrored " +
+                                    "highlight post!")
+                                print("Setting latest post as " +
+                                    last_mirror_postname)
+                                before = last_mirror_postname
+                                break
 
-                    except IndexError:
-                        print("All mirrored posts were deleted/removed!")
+                        except IndexError:
+                            print("All mirrored posts were deleted/removed!")
+                            before = self.__reddit_get_latest_post_name(subreddit)
+                            print(f"Setting latest post as {before}")
+
+                    else:
+                        print("No previous mirrored highlight post found!")
                         before = self.__reddit_get_latest_post_name(subreddit)
                         print(f"Setting latest post as {before}")
 
-                else:
-                    print("No previous mirrored highlight post found!")
-                    before = self.__reddit_get_latest_post_name(subreddit)
-                    print(f"Setting latest post as {before}")
+                print(f"Retrieving all posts before post name {before}")
 
-            print(f"Retrieving all posts before post name {before}")
-
-            params = {}
-            params.update(before=before)
-
-            if limit:
-                params.update(limit=limit)
-
-            highlight_posts = []
-
-            while True:
-                res = self.__reddit_client.posts(
-                    subreddit=subreddit,
-                    sort="new",
-                    before=before,
-                    limit=limit,
-                )
-                res.raise_for_status()
-
-                if res.json()["data"]["dist"] == 0:
-                    break
-
-                subreddit_listing_posts = res.json()["data"]["children"]
-
-                for post in reversed(subreddit_listing_posts):
-                    if post["data"]["url"].startswith((
-                        "https://streamable.com/",
-                        "https://streamff.com/v/",
-                        "https://streamja.com/",
-                    )):
-                        res = self.__reddit_client.comments(
-                            post["data"]["id"],
-                            subreddit=post["data"]["subreddit"],
-                            limit=1,
-                        )
-                        res.raise_for_status()
-
-                        if (
-                            len(res.json()) == 2
-                            and len(res.json()[1]["data"]["children"]) > 0
-                        ):
-                            post_first_comment = \
-                                res.json()[1]["data"]["children"][0]
-
-                            if (("stickied" not in post_first_comment["data"]
-                                    or post_first_comment["data"]["stickied"]
-                                    is False) and skip_missing_automod):
-                                continue
-
-                        elif skip_missing_automod:
-                            continue
-
-                        mirror_postname_stack.append(post["data"]["name"])
-                        highlight_posts.append(post)
-
-                before = subreddit_listing_posts[0]["data"]["name"]
+                params = {}
                 params.update(before=before)
 
-            self.__mirror_for_posts(
-                highlight_posts,
-                reddit_mirror=reddit_mirror,
-                juststreamlive_mirror=juststreamlive_mirror,
-                streamff_mirror=streamff_mirror,
-                max_processing_attempts=max_processing_attempts,
-                minimum_retry_interval=minimum_retry_interval,
-            )
+                if limit:
+                    params.update(limit=limit)
 
-            print(f"Sleeping for {interval} seconds!")
-            sleep(interval)
+                highlight_posts = []
+
+                while True:
+                    res = self.__reddit_client.posts(
+                        subreddit=subreddit,
+                        sort="new",
+                        before=before,
+                        limit=limit,
+                    )
+                    res.raise_for_status()
+
+                    if res.json()["data"]["dist"] == 0:
+                        break
+
+                    subreddit_listing_posts = res.json()["data"]["children"]
+
+                    for post in reversed(subreddit_listing_posts):
+                        if post["data"]["url"].startswith((
+                            "https://streamable.com/",
+                            "https://streamff.com/v/",
+                            "https://streamja.com/",
+                        )):
+                            res = self.__reddit_client.comments(
+                                post["data"]["id"],
+                                subreddit=post["data"]["subreddit"],
+                                limit=1,
+                            )
+                            res.raise_for_status()
+
+                            if (
+                                len(res.json()) == 2
+                                and len(res.json()[1]["data"]["children"]) > 0
+                            ):
+                                post_first_comment = \
+                                    res.json()[1]["data"]["children"][0]
+
+                                if (("stickied" not in post_first_comment["data"]
+                                        or post_first_comment["data"]["stickied"]
+                                        is False) and skip_missing_automod):
+                                    continue
+
+                            elif skip_missing_automod:
+                                continue
+
+                            mirror_postname_stack.append(post["data"]["name"])
+                            highlight_posts.append(post)
+
+                    before = subreddit_listing_posts[0]["data"]["name"]
+                    params.update(before=before)
+
+                self.__mirror_for_posts(
+                    highlight_posts,
+                    reddit_mirror=reddit_mirror,
+                    juststreamlive_mirror=juststreamlive_mirror,
+                    streamff_mirror=streamff_mirror,
+                    max_processing_attempts=max_processing_attempts,
+                    minimum_retry_interval=minimum_retry_interval,
+                )
+
+                print(f"Sleeping for {interval} seconds!")
+                sleep(interval)
+
+        except KeyboardInterrupt:
+            pass
 
     def __mirror_for_posts(
         self,
