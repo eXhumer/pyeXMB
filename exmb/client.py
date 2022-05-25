@@ -1,5 +1,6 @@
 from collections import deque
 from datetime import datetime, timezone
+from io import BytesIO
 from pathlib import Path
 from queue import Queue
 from time import sleep
@@ -8,6 +9,7 @@ from typing import Any, Dict, List
 from exrc.client import OAuth2Client
 from exvhp import (
     Client as VHPClient,
+    ImgurVideoTicketData,
     StreamableVideo,
     StreamffVideo,
     StreamjaVideo,
@@ -204,6 +206,7 @@ class BotClient:
 
                     for post in reversed(subreddit_listing_posts):
                         if post["data"]["url"].startswith((
+                            "https://imgur.com/",
                             "https://streamable.com/",
                             "https://streamff.com/v/",
                             "https://streamja.com/",
@@ -271,6 +274,7 @@ class BotClient:
             vid_url: str = post["data"]["url"]
 
             if not vid_url.startswith((
+                "https://imgur.com/",
                 "https://streamable.com/",
                 "https://streamff.com/v/",
                 "https://streamja.com/",
@@ -280,7 +284,61 @@ class BotClient:
                 )
                 continue
 
-            if vid_url.startswith("https://streamable.com/"):
+            if vid_url.startswith("https://imgur.com/"):
+                if vid_url.startswith("https://imgur.com/a/"):
+                    album_id = vid_url.split("https://imgur.com/a/")[1]
+                    media = self.__vhp_client.imgur.get_album_medias(album_id)[0]
+                    print(f"Processing {post['data']['name']} with Imgur " +
+                          f"Album {album_id} containing Imgur Video {media[0]}")
+
+                else:
+                    media_id = vid_url.split("https://imgur.com/")[1]
+                    media = self.__vhp_client.imgur.get_media(media_id)
+                    print(f"Processing {post['data']['name']} with Imgur " +
+                          f"Imgur Video {media[0]}")
+
+                media_data = \
+                    self.__vhp_client.imgur.get_media_content(media[0])
+
+                if (
+                    juststreamlive_mirror and
+                    media_data.getbuffer().nbytes <= JUSTSTREAMLIVE_MAX_SIZE
+                ):
+                    jsl_mirror = self.__vhp_client.juststreamlive.upload_video(
+                        media_data, "Mirror.mp4",
+                    )
+
+                if media_data.getbuffer().nbytes <= STREAMABLE_MAX_SIZE:
+                    sab_mirror = self.__vhp_client.streamable.mirror_video(
+                        StreamableVideo(shortcode=shortcode),
+                        title=post["data"]["title"],
+                    )
+
+                if media_data.getbuffer().nbytes <= STREAMJA_MAX_SIZE:
+                    sja_mirror = self.__vhp_client.streamja.upload_video(
+                        media_data, "Mirror.mp4",
+                    )
+
+                if (
+                    streamff_mirror and
+                    media_data.getbuffer().nbytes <= STREAMFF_MAX_SIZE
+                ):
+                    sff_mirror = self.__vhp_client.streamff.upload_video(
+                        media_data, "Mirror.mp4",
+                    )
+
+                if (
+                    reddit_mirror
+                    and media_data.getbuffer().nbytes <= REDDIT_MAX_SIZE
+                ):
+                    red_url = self.__reddit_client.submit_video(
+                        post["data"]["title"],
+                        media_data,
+                        "Mirror.mp4",
+                        subreddit=reddit_mirror,
+                    )[1]
+
+            elif vid_url.startswith("https://streamable.com/"):
                 shortcode = vid_url.split("https://streamable.com/")[1]
                 print(f"Processing {post['data']['name']} with Streamable " +
                       f"Video {shortcode}")
@@ -688,6 +746,43 @@ class BotClient:
                 max_processing_attempts=max_processing_attempts,
                 minimum_retry_interval=minimum_retry_interval,
             )
+
+    def post_imgur(
+        self,
+        media_path: Path,
+        post_title: str,
+        subreddit: str | None = None,
+        flair_id: str | None = None,
+    ):
+        video_ticket = self.__vhp_client.imgur.upload_media(
+            media_path.open(mode="rb"),
+            media_path.name,
+        )
+
+        assert isinstance(video_ticket, ImgurVideoTicketData)
+
+        polled_data = self.__vhp_client.imgur.poll_video_tickets(
+            video_ticket,
+        )
+
+        while video_ticket.ticket not in polled_data:
+            polled_data = self.__vhp_client.imgur.poll_video_tickets(
+                video_ticket,
+            )
+
+        video_data = polled_data[video_ticket.ticket]
+
+        self.__vhp_client.imgur.update_media(
+            video_data,
+            title=post_title,
+        )
+
+        return self.__reddit_client.submit_url(
+            post_title,
+            f"https://imgur.com/{video_data.id}",
+            subreddit=subreddit,
+            flair_id=flair_id,
+        )
 
     def post_juststreamlive(
         self,

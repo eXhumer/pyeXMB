@@ -92,6 +92,22 @@ def __parse_args(args: Namespace):
                 f"No authorization alias with key {args.alias} found!",
             )
 
+    elif args.action == "post-imgur":
+        if (__config_path__ / f"{args.alias}.json").is_file():
+            BotClient.reddit_load_existing_user(
+                args.alias
+            ).post_imgur(
+                args.media_path,
+                args.title,
+                subreddit=args.subreddit,
+                flair_id=args.flair_id,
+            )
+
+        else:
+            raise KeyError(
+                f"No authorization alias with key {args.alias} found!",
+            )
+
     elif args.action == "post-juststreamlive":
         if (__config_path__ / f"{args.alias}.json").is_file():
             BotClient.reddit_load_existing_user(
@@ -214,6 +230,12 @@ def console_main():
     mirror_for_post_parser.add_argument("--subreddit")
     mirror_for_post_parser.add_argument("--skip-missing-automod",
                                         action="store_true")
+    post_imgur_parser = subparsers.add_parser("post-imgur")
+    post_imgur_parser.add_argument("alias")
+    post_imgur_parser.add_argument("media_path", type=Path)
+    post_imgur_parser.add_argument("title")
+    post_imgur_parser.add_argument("--subreddit")
+    post_imgur_parser.add_argument("--flair-id")
     post_juststreamlive_parser = subparsers.add_parser("post-juststreamlive")
     post_juststreamlive_parser.add_argument("alias")
     post_juststreamlive_parser.add_argument("media_path", type=Path)
