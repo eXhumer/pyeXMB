@@ -9,6 +9,7 @@ from typing import Any, Dict, List
 from exrc.client import OAuth2Client
 from exvhp import (
     Client as VHPClient,
+    ImgurVideoData,
     ImgurVideoTicketData,
     StreamableVideo,
     StreamffVideo,
@@ -295,7 +296,7 @@ class BotClient:
                     media_id = vid_url.split("https://imgur.com/")[1]
                     media = self.__vhp_client.imgur.get_media(media_id)
                     print(f"Processing {post['data']['name']} with Imgur " +
-                          f"Imgur Video {media[0]}")
+                          f"Video {media[0]}")
 
                 media_data = \
                     self.__vhp_client.imgur.get_media_content(media[0])
@@ -310,7 +311,7 @@ class BotClient:
 
                 if media_data.getbuffer().nbytes <= STREAMABLE_MAX_SIZE:
                     sab_mirror = self.__vhp_client.streamable.mirror_video(
-                        StreamableVideo(shortcode=shortcode),
+                        ImgurVideoData(id=media[0], deletehash=""),
                         title=post["data"]["title"],
                     )
 
