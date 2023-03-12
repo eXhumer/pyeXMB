@@ -15,7 +15,7 @@ pip install -e git+https://github.com/eXhumer/pyeXMB.git@python3#egg=exmb[http2]
 ```
 
 ## Licensing
-This project is licensed under OSI Approved [GNU GPLv3 **ONLY**][project-license].
+This project is licensed under OSI Approved [GNU AGPLv3 **ONLY**][project-license].
 
 [exrc]: https://github.com/eXhumer/pyeXRC
 [exvhp]: https://github.com/eXhumer/pyeXVHP
